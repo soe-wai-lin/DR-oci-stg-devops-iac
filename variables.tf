@@ -41,7 +41,7 @@ variable "vcn_cidr_block" {
 }
 
 variable "vcn_dns_label" {
-  default = "dr-stg"
+  default = "drstg"
   type    = string
 }
 
