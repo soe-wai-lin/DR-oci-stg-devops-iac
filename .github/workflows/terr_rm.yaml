@@ -295,7 +295,7 @@ jobs:
           set -euo pipefail
 
           oci resource-manager job-output-summary list-job-outputs \
-          --region ap-singapore-1 \
+          --region ap-sydney-1 \
           --job-id "${APPLY_JOB_ID}" \
           --all \
           --output json > rm_outputs.json
