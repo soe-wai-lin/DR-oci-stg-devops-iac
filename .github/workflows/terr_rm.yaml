@@ -99,7 +99,7 @@ jobs:
 
           PLAN_JOB_ID=$(oci resource-manager job create-plan-job \
             --stack-id "${STACK_ID}" \
-            --region ap-singapore-1 \
+            --region ap-sydney-1 \
             --display-name "gha-plan-${GITHUB_RUN_NUMBER}" \
             --job-operation-details-is-provider-upgrade-required "${UPGRADE}" \
             --wait-for-state ACCEPTED \
@@ -123,7 +123,7 @@ jobs:
 
           for i in {1..120}; do
             STATUS=$(oci resource-manager job get \
-              --region ap-singapore-1 \
+              --region ap-sydney-1 \
               --job-id "${PLAN_JOB_ID}" \
               --query 'data."lifecycle-state"' \
               --raw-output)
@@ -241,7 +241,7 @@ jobs:
 
           APPLY_JOB_ID=$(oci resource-manager job create-apply-job \
             --stack-id "${STACK_ID}" \
-            --region ap-singapore-1 \
+            --region ap-sydney-1 \
             --execution-plan-strategy FROM_PLAN_JOB_ID \
             --execution-plan-job-id "${PLAN_JOB_ID}" \
             --display-name "gha-apply-${GITHUB_RUN_NUMBER}" \
@@ -264,7 +264,7 @@ jobs:
 
           for i in {1..180}; do
             STATUS=$(oci resource-manager job get \
-              --region ap-singapore-1 \
+              --region ap-sydney-1 \
               --job-id "${APPLY_JOB_ID}" \
               --query 'data."lifecycle-state"' \
               --raw-output)
