@@ -1,1727 +1,1727 @@
-# name: DC Resource Manager Apply
+name: TW-OCI-DR Resource Manager Apply
 
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       resources_apply:
-#         description: "Manually trigger apply for OCI Infra Resource Manager"
-#         required: true   ## use "true" if want to maually trigger
-#         type: choice
-#         options:
-#           - "true"
-#           - "false"
-#         default: "false"
+on:
+  workflow_dispatch:
+    inputs:
+      resources_apply:
+        description: "Manually trigger apply for OCI Infra Resource Manager"
+        required: true   ## use "true" if want to maually trigger
+        type: choice
+        options:
+          - "true"
+          - "false"
+        default: "false"
 
-#   #     upgrade_provider:
-#   #       description: "Upgrade provider versions during plan/apply"
-#   #       required: false
-#   #       default: false
-#   #       type: boolean
-#   #     environment_name:
-#   #       description: "GitHub Environment name used for manual approval"
-#   #       required: false
-#   #       default: "prod-oci-infra-apply"
-#   #       type: string
-#   push:
-#     branches:
-#       - main
+  #     upgrade_provider:
+  #       description: "Upgrade provider versions during plan/apply"
+  #       required: false
+  #       default: false
+  #       type: boolean
+  #     environment_name:
+  #       description: "GitHub Environment name used for manual approval"
+  #       required: false
+  #       default: "prod-oci-infra-apply"
+  #       type: string
+  push:
+    branches:
+      - main
 
-# permissions:
-#   contents: read
+permissions:
+  contents: read
 
-# jobs:
-#   plan:
-#     name: DC OCI Infra Resource Manager Plan
-#     runs-on: ubuntu-latest
-#     ## We can use Job level output to carry different job level, but if this output include sensitive datas like secrets,
-#     ## Cannot carry this output to different job. That's why in this case, use upload "plan_job_id" in Plan Job , and 
-#     ## download "plan_job_id" from Apply Job.cancel-timeout-minutes: 
+jobs:
+  plan:
+    name: TW DR OCI Infra Resource Manager Plan
+    runs-on: ubuntu-latest
+    ## We can use Job level output to carry different job level, but if this output include sensitive datas like secrets,
+    ## Cannot carry this output to different job. That's why in this case, use upload "plan_job_id" in Plan Job , and 
+    ## download "plan_job_id" from Apply Job.cancel-timeout-minutes: 
 
-#     # outputs:
-#     #   plan_job_id: ${{ steps.create_plan.outputs.plan_job_id }}   
+    # outputs:
+    #   plan_job_id: ${{ steps.create_plan.outputs.plan_job_id }}   
 
-#     steps:
-#       - name: Install OCI CLI
-#         run: |
-#           python3 -m pip install --upgrade pip
-#           python3 -m pip install oci-cli
+    steps:
+      - name: Install OCI CLI
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install oci-cli
 
-#       - name: Configure OCI CLI
-#         shell: bash
-#         env:
-#           OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
-#           OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
-#           OCI_REGION: ${{ secrets.OCI_REGION }}
-#           OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-#           OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-#           OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
-#         run: |
-#           mkdir -p ~/.oci
-#           chmod 700 ~/.oci
+      - name: Configure OCI CLI
+        shell: bash
+        env:
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
+        run: |
+          mkdir -p ~/.oci
+          chmod 700 ~/.oci
 
-#           printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
-#           chmod 600 ~/.oci/oci_api_key.pem
+          printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
 
-#           cat > ~/.oci/config <<EOF
-#           [DEFAULT]
-#           user=${OCI_USER_OCID}
-#           tenancy=${OCI_TENANCY_OCID}
-#           region=${OCI_REGION}
-#           fingerprint=${OCI_FINGERPRINT}
-#           key_file=${HOME}/.oci/oci_api_key.pem
-#           pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}
-#           EOF
-#           cat ~/.oci/config
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${OCI_USER_OCID}
+          tenancy=${OCI_TENANCY_OCID}
+          region=${OCI_REGION}
+          fingerprint=${OCI_FINGERPRINT}
+          key_file=${HOME}/.oci/oci_api_key.pem
+          pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}
+          EOF
+          cat ~/.oci/config
 
-#           chmod 600 ~/.oci/config
-
-
-#           # # Optional passphrase if your key is encrypted
-#           # if [ -n "${OCI_PRIVATE_KEY_PASSPHRASE}" ]; then
-#           #   echo "pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}" >> ~/.oci/config
-#           # fi
+          chmod 600 ~/.oci/config
 
 
-#           oci --version
+          # # Optional passphrase if your key is encrypted
+          # if [ -n "${OCI_PRIVATE_KEY_PASSPHRASE}" ]; then
+          #   echo "pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}" >> ~/.oci/config
+          # fi
 
-#       - name: Create plan job
-#         id: create_plan
-#         shell: bash
-#         run: |
-#           set -euo pipefail
 
-#           # STACK_ID="${{ github.event.inputs.stack_id }}"
-#           # UPGRADE="${{ github.event.inputs.upgrade_provider }}"
+          oci --version
 
-#           STACK_ID="${{ vars.STACK_ID }}"
-#           UPGRADE="false"
+      - name: Create plan job
+        id: create_plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # STACK_ID="${{ github.event.inputs.stack_id }}"
+          # UPGRADE="${{ github.event.inputs.upgrade_provider }}"
+
+          STACK_ID="${{ vars.STACK_ID }}"
+          UPGRADE="false"
           
 
-#           PLAN_JOB_ID=$(oci resource-manager job create-plan-job \
-#             --stack-id "${STACK_ID}" \
-#             --region ap-singapore-1 \
-#             --display-name "gha-plan-${GITHUB_RUN_NUMBER}" \
-#             --job-operation-details-is-provider-upgrade-required "${UPGRADE}" \
-#             --wait-for-state ACCEPTED \
-#             --max-wait-seconds 1200 \
-#             --query 'data.id' \
-#             --raw-output)
+          PLAN_JOB_ID=$(oci resource-manager job create-plan-job \
+            --stack-id "${STACK_ID}" \
+            --region ap-singapore-1 \
+            --display-name "gha-plan-${GITHUB_RUN_NUMBER}" \
+            --job-operation-details-is-provider-upgrade-required "${UPGRADE}" \
+            --wait-for-state ACCEPTED \
+            --max-wait-seconds 1200 \
+            --query 'data.id' \
+            --raw-output)
 
-#           echo "plan_job_id=${PLAN_JOB_ID}" >> "$GITHUB_OUTPUT"
-#           echo "Created plan job: ${PLAN_JOB_ID}"
-#           # printf '%s' "${PLAN_JOB_ID}" > plan_job_id.txt
+          echo "plan_job_id=${PLAN_JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "Created plan job: ${PLAN_JOB_ID}"
+          # printf '%s' "${PLAN_JOB_ID}" > plan_job_id.txt
 
 
 
-#       - name: Wait for plan job result
-#         shell: bash
-#         run: |
-#           set -euo pipefail
-#           PLAN_JOB_ID="${{ steps.create_plan.outputs.plan_job_id }}"
+      - name: Wait for plan job result
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLAN_JOB_ID="${{ steps.create_plan.outputs.plan_job_id }}"
 
-#           echo "Waiting for plan job: ${{ steps.create_plan.outputs.plan_job_id }}"
+          echo "Waiting for plan job: ${{ steps.create_plan.outputs.plan_job_id }}"
 
-#           for i in {1..120}; do
-#             STATUS=$(oci resource-manager job get \
-#               --region ap-singapore-1 \
-#               --job-id "${PLAN_JOB_ID}" \
-#               --query 'data."lifecycle-state"' \
-#               --raw-output)
+          for i in {1..120}; do
+            STATUS=$(oci resource-manager job get \
+              --region ap-singapore-1 \
+              --job-id "${PLAN_JOB_ID}" \
+              --query 'data."lifecycle-state"' \
+              --raw-output)
 
-#             echo "Current plan status: ${STATUS}"
+            echo "Current plan status: ${STATUS}"
 
-#             if [ "${STATUS}" = "SUCCEEDED" ]; then
-#               echo "Plan job succeeded."
-#               exit 0
-#             elif [ "${STATUS}" = "FAILED" ] || [ "${STATUS}" = "CANCELED" ]; then
-#               echo "Plan job failed or was canceled."
-#               oci resource-manager job get --job-id "${PLAN_JOB_ID}"
-#               exit 1
-#             fi
+            if [ "${STATUS}" = "SUCCEEDED" ]; then
+              echo "Plan job succeeded."
+              exit 0
+            elif [ "${STATUS}" = "FAILED" ] || [ "${STATUS}" = "CANCELED" ]; then
+              echo "Plan job failed or was canceled."
+              oci resource-manager job get --job-id "${PLAN_JOB_ID}"
+              exit 1
+            fi
 
-#             sleep 10
-#           done
+            sleep 10
+          done
 
-#           echo "Timed out waiting for plan job."
-#           exit 1
+          echo "Timed out waiting for plan job."
+          exit 1
 
     
-#       - name: Save plan job id to file
-#         shell: bash
-#         run: |
-#           printf '%s' "${{ steps.create_plan.outputs.plan_job_id }}" > plan_job_id.txt
-#           test -s plan_job_id.txt
-#           cat plan_job_id.txt
-#           echo "Saved plan job id to artifact file."
+      - name: Save plan job id to file
+        shell: bash
+        run: |
+          printf '%s' "${{ steps.create_plan.outputs.plan_job_id }}" > plan_job_id.txt
+          test -s plan_job_id.txt
+          cat plan_job_id.txt
+          echo "Saved plan job id to artifact file."
 
       
-#       - name: Upload plan job id artifact      ## upload "plan-job-id" for easy to call from Apply Job ##
-#         uses: actions/upload-artifact@v7.0.0
-#         with:
-#           name: plan-job-id
-#           path: plan_job_id.txt
+      - name: Upload plan job id artifact      ## upload "plan-job-id" for easy to call from Apply Job ##
+        uses: actions/upload-artifact@v7.0.0
+        with:
+          name: plan-job-id
+          path: plan_job_id.txt
 
 
-#   apply:
-#     name: DC Infra OCI Resource Manager Apply
-#     runs-on: ubuntu-latest
+  apply:
+    name: TW DR Infra OCI Resource Manager Apply
+    runs-on: ubuntu-latest
 
-# # ✅ Only run apply when manually triggered AND input = true
-#     if: github.event_name == 'workflow_dispatch' && github.event.inputs.resources_apply == 'true'
+# ✅ Only run apply when manually triggered AND input = true
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.resources_apply == 'true'
 
-#     needs: plan
+    needs: plan
 
-#     # This environment must be created in GitHub repo settings
-#     # and configured with Required reviewers for manual approval.
-#     environment:
-#       # name: ${{ github.event.inputs.environment_name }}
-#       name: stg-oci-infra-apply
+    # This environment must be created in GitHub repo settings
+    # and configured with Required reviewers for manual approval.
+    environment:
+      # name: ${{ github.event.inputs.environment_name }}
+      name: stg-oci-infra-apply
 
-#     steps:
-#       - name: Install OCI CLI
-#         run: |
-#           python3 -m pip install --upgrade pip
-#           python3 -m pip install oci-cli
+    steps:
+      - name: Install OCI CLI
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install oci-cli
 
-#       - name: Configure OCI CLI
-#         shell: bash
-#         env:
-#           OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
-#           OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
-#           OCI_REGION: ${{ secrets.OCI_REGION }}
-#           OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-#           OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-#           OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
-#         run: |
-#           mkdir -p ~/.oci
-#           chmod 700 ~/.oci
+      - name: Configure OCI CLI
+        shell: bash
+        env:
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
+        run: |
+          mkdir -p ~/.oci
+          chmod 700 ~/.oci
 
-#           printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
-#           chmod 600 ~/.oci/oci_api_key.pem
+          printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
 
-#           cat > ~/.oci/config <<EOF
-#           [DEFAULT]
-#           user=${OCI_USER_OCID}
-#           tenancy=${OCI_TENANCY_OCID}
-#           region=${OCI_REGION}
-#           fingerprint=${OCI_FINGERPRINT}
-#           key_file=${HOME}/.oci/oci_api_key.pem
-#           pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}
-#           EOF
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${OCI_USER_OCID}
+          tenancy=${OCI_TENANCY_OCID}
+          region=${OCI_REGION}
+          fingerprint=${OCI_FINGERPRINT}
+          key_file=${HOME}/.oci/oci_api_key.pem
+          pass_phrase=${OCI_PRIVATE_KEY_PASSPHRASE}
+          EOF
 
-#           chmod 600 ~/.oci/config
+          chmod 600 ~/.oci/config
 
-#       - name: Download plan job id artifact
-#         uses: actions/download-artifact@v8.0.1
-#         with:
-#           name: plan-job-id
+      - name: Download plan job id artifact
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: plan-job-id
 
-#       - name: Read plan job id
-#         id: read_plan_id
-#         shell: bash
-#         run: |
-#           PLAN_JOB_ID="$(cat plan_job_id.txt)"
-#           echo "plan_job_id=${PLAN_JOB_ID}" >> "$GITHUB_OUTPUT"
-#           echo "Downloaded PLAN_JOB_ID=[${PLAN_JOB_ID}]"
-#           test -n "${PLAN_JOB_ID}"
+      - name: Read plan job id
+        id: read_plan_id
+        shell: bash
+        run: |
+          PLAN_JOB_ID="$(cat plan_job_id.txt)"
+          echo "plan_job_id=${PLAN_JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "Downloaded PLAN_JOB_ID=[${PLAN_JOB_ID}]"
+          test -n "${PLAN_JOB_ID}"
 
-#       - name: Create apply job from approved plan
-#         id: create_apply
-#         shell: bash
-#         run: |
-#           set -euo pipefail
+      - name: Create apply job from approved plan
+        id: create_apply
+        shell: bash
+        run: |
+          set -euo pipefail
 
-#           # STACK_ID="${{ github.event.inputs.stack_id }}"
-#           # UPGRADE="${{ github.event.inputs.upgrade_provider }}"
+          # STACK_ID="${{ github.event.inputs.stack_id }}"
+          # UPGRADE="${{ github.event.inputs.upgrade_provider }}"
 
-#           STACK_ID="${{ vars.STACK_ID }}"
-#           UPGRADE="false"
-#           PLAN_JOB_ID="${{ steps.read_plan_id.outputs.plan_job_id }}"
+          STACK_ID="${{ vars.STACK_ID }}"
+          UPGRADE="false"
+          PLAN_JOB_ID="${{ steps.read_plan_id.outputs.plan_job_id }}"
           
 
-#           APPLY_JOB_ID=$(oci resource-manager job create-apply-job \
-#             --stack-id "${STACK_ID}" \
-#             --region ap-singapore-1 \
-#             --execution-plan-strategy FROM_PLAN_JOB_ID \
-#             --execution-plan-job-id "${PLAN_JOB_ID}" \
-#             --display-name "gha-apply-${GITHUB_RUN_NUMBER}" \
-#             --job-operation-details-is-provider-upgrade-required "${UPGRADE}" \
-#             --wait-for-state ACCEPTED \
-#             --max-wait-seconds 1200 \
-#             --query 'data.id' \
-#             --raw-output)
+          APPLY_JOB_ID=$(oci resource-manager job create-apply-job \
+            --stack-id "${STACK_ID}" \
+            --region ap-singapore-1 \
+            --execution-plan-strategy FROM_PLAN_JOB_ID \
+            --execution-plan-job-id "${PLAN_JOB_ID}" \
+            --display-name "gha-apply-${GITHUB_RUN_NUMBER}" \
+            --job-operation-details-is-provider-upgrade-required "${UPGRADE}" \
+            --wait-for-state ACCEPTED \
+            --max-wait-seconds 1200 \
+            --query 'data.id' \
+            --raw-output)
 
-#           echo "apply_job_id=${APPLY_JOB_ID}" >> "$GITHUB_OUTPUT"
-#           echo "Created apply job: ${APPLY_JOB_ID}"
+          echo "apply_job_id=${APPLY_JOB_ID}" >> "$GITHUB_OUTPUT"
+          echo "Created apply job: ${APPLY_JOB_ID}"
 
-#       - name: Wait for apply job result
-#         shell: bash
-#         run: |
-#           set -euo pipefail
-#           APPLY_JOB_ID="${{ steps.create_apply.outputs.apply_job_id }}"
+      - name: Wait for apply job result
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPLY_JOB_ID="${{ steps.create_apply.outputs.apply_job_id }}"
 
-#           echo "Waiting for apply job: ${APPLY_JOB_ID}"
+          echo "Waiting for apply job: ${APPLY_JOB_ID}"
 
-#           for i in {1..180}; do
-#             STATUS=$(oci resource-manager job get \
-#               --region ap-singapore-1 \
-#               --job-id "${APPLY_JOB_ID}" \
-#               --query 'data."lifecycle-state"' \
-#               --raw-output)
+          for i in {1..180}; do
+            STATUS=$(oci resource-manager job get \
+              --region ap-singapore-1 \
+              --job-id "${APPLY_JOB_ID}" \
+              --query 'data."lifecycle-state"' \
+              --raw-output)
 
-#             echo "Current apply status: ${STATUS}"
+            echo "Current apply status: ${STATUS}"
 
-#             if [ "${STATUS}" = "SUCCEEDED" ]; then
-#               echo "Apply job succeeded."
-#               exit 0
-#             elif [ "${STATUS}" = "FAILED" ] || [ "${STATUS}" = "CANCELED" ]; then
-#               echo "Apply job failed or was canceled."
-#               oci resource-manager job get --region ap-singapore-1 --job-id "${APPLY_JOB_ID}"
-#               exit 1
-#             fi
+            if [ "${STATUS}" = "SUCCEEDED" ]; then
+              echo "Apply job succeeded."
+              exit 0
+            elif [ "${STATUS}" = "FAILED" ] || [ "${STATUS}" = "CANCELED" ]; then
+              echo "Apply job failed or was canceled."
+              oci resource-manager job get --region ap-singapore-1 --job-id "${APPLY_JOB_ID}"
+              exit 1
+            fi
 
-#             sleep 10
-#           done
+            sleep 10
+          done
 
-#           echo "Timed out waiting for apply job."
-#           exit 1
+          echo "Timed out waiting for apply job."
+          exit 1
 
-#       - name: Read apply outputs
-#         id: get_rm_outputs
-#         shell: bash
-#         env:
-#           APPLY_JOB_ID: ${{ steps.create_apply.outputs.apply_job_id }}
-#         run: |
-#           set -euo pipefail
+      - name: Read apply outputs
+        id: get_rm_outputs
+        shell: bash
+        env:
+          APPLY_JOB_ID: ${{ steps.create_apply.outputs.apply_job_id }}
+        run: |
+          set -euo pipefail
 
-#           oci resource-manager job-output-summary list-job-outputs \
-#           --region ap-singapore-1 \
-#           --job-id "${APPLY_JOB_ID}" \
-#           --all \
-#           --output json > rm_outputs.json
+          oci resource-manager job-output-summary list-job-outputs \
+          --region ap-singapore-1 \
+          --job-id "${APPLY_JOB_ID}" \
+          --all \
+          --output json > rm_outputs.json
 
-#           # OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="oke_cluster_ocid") | ."output-value"' rm_outputs.json)
-#           # LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_subnet_ocid") | ."output-value"' rm_outputs.json)
-#           # LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_nsg_ocid") | ."output-value"' rm_outputs.json)
-#           # LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
+          # OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="oke_cluster_ocid") | ."output-value"' rm_outputs.json)
+          # LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_subnet_ocid") | ."output-value"' rm_outputs.json)
+          # LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_nsg_ocid") | ."output-value"' rm_outputs.json)
+          # LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
 
-#           # WEB_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # WEB_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # WEB_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # WEB_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # CMS_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # CMS_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # CMS_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # CMS_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # AIRS_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # AIRS_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # AIRS_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
+          # AIRS_POD_TO_DB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_pod_to_db_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # WEB_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # WEB_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # WEB_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # WEB_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # CMS_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # CMS_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # CMS_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # CMS_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # AIRS_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # AIRS_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # AIRS_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
+          # AIRS_POD_TO_REDIS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="airs_pod_to_redis_npa_test_id") | ."output-value"' rm_outputs.json)
 
-#           # NET_COMPARTMENT_ID=$(jq -r '.data.items[] | select(."output-name"=="net_compartment_id") | ."output-value"' rm_outputs.json)
+          # NET_COMPARTMENT_ID=$(jq -r '.data.items[] | select(."output-name"=="net_compartment_id") | ."output-value"' rm_outputs.json)
 
-#           # # WEB_TO_CMS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_cms_npa_test_id") | ."output-value"' rm_outputs.json)
-#           # # CMS_TO_WEB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_web_npa_test_id") | ."output-value"' rm_outputs.json)
+          # # WEB_TO_CMS_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="web_to_cms_npa_test_id") | ."output-value"' rm_outputs.json)
+          # # CMS_TO_WEB_NPA_TEST_ID=$(jq -r '.data.items[] | select(."output-name"=="cms_to_web_npa_test_id") | ."output-value"' rm_outputs.json)
           
 
-#           # # if [ -z "${WEB_TO_DB_NPA_TEST_ID}" ]  = "null" ]; then
-#           # #   echo "ERROR: output web_to_db_npa_test_id not found"
-#           # #   exit 1
-#           # # fi
+          # # if [ -z "${WEB_TO_DB_NPA_TEST_ID}" ]  = "null" ]; then
+          # #   echo "ERROR: output web_to_db_npa_test_id not found"
+          # #   exit 1
+          # # fi
 
-#           # # if [ -z "${CMS_TO_DB_NPA_TEST_ID}" ]  = "null" ]; then
-#           # #   echo "ERROR: output web_to_db_npa_test_id not found"
-#           # #   exit 1
-#           # # fi
+          # # if [ -z "${CMS_TO_DB_NPA_TEST_ID}" ]  = "null" ]; then
+          # #   echo "ERROR: output web_to_db_npa_test_id not found"
+          # #   exit 1
+          # # fi
 
-#           # # if [ -z "${WEB_TO_CMS_NPA_TEST_ID}" ]  = "null" ]; then
-#           # #   echo "ERROR: output web_to_db_npa_test_id not found"
-#           # #   exit 1
-#           # # fi
+          # # if [ -z "${WEB_TO_CMS_NPA_TEST_ID}" ]  = "null" ]; then
+          # #   echo "ERROR: output web_to_db_npa_test_id not found"
+          # #   exit 1
+          # # fi
 
-#           # # if [ -z "${CMS_TO_WEB_NPA_TEST_ID}" ]  = "null" ]; then
-#           # #   echo "ERROR: output web_to_db_npa_test_id not found"
-#           # #   exit 1
-#           # # fi
+          # # if [ -z "${CMS_TO_WEB_NPA_TEST_ID}" ]  = "null" ]; then
+          # #   echo "ERROR: output web_to_db_npa_test_id not found"
+          # #   exit 1
+          # # fi
 
-#           # # if [ -z "${NET_COMPARTMENT_ID}" ] = "null" ]; then
-#           # #   echo "ERROR: output net_compartment_id not found"
-#           # #   exit 1
-#           # # fi
+          # # if [ -z "${NET_COMPARTMENT_ID}" ] = "null" ]; then
+          # #   echo "ERROR: output net_compartment_id not found"
+          # #   exit 1
+          # # fi
 
-#           # echo "oke_cluster_ocid=${OKE_CLUSTER_OCID}" >> "$GITHUB_OUTPUT"
-#           # echo "lb_subnet_ocid=${LB_SUBNET_OCID}" >> "$GITHUB_OUTPUT"
-#           # echo "lb_nsg_ocid=${LB_NSG_OCID}" >> "$GITHUB_OUTPUT"
-#           # echo "lb_reserved_public_ip_ocid=${LB_RESERVED_PUBLIC_IP_OCID}" >> "$GITHUB_OUTPUT"
+          # echo "oke_cluster_ocid=${OKE_CLUSTER_OCID}" >> "$GITHUB_OUTPUT"
+          # echo "lb_subnet_ocid=${LB_SUBNET_OCID}" >> "$GITHUB_OUTPUT"
+          # echo "lb_nsg_ocid=${LB_NSG_OCID}" >> "$GITHUB_OUTPUT"
+          # echo "lb_reserved_public_ip_ocid=${LB_RESERVED_PUBLIC_IP_OCID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "web_to_db_npa_test_id=${WEB_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "web_pod_to_db_npa_test_id=${WEB_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "web_to_db_npa_test_id=${WEB_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "web_pod_to_db_npa_test_id=${WEB_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "cms_to_db_npa_test_id=${CMS_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "cms_pod_to_db_npa_test_id=${CMS_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "cms_to_db_npa_test_id=${CMS_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "cms_pod_to_db_npa_test_id=${CMS_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "airs_to_db_npa_test_id=${AIRS_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "airs_pod_to_db_npa_test_id=${AIRS_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "airs_to_db_npa_test_id=${AIRS_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "airs_pod_to_db_npa_test_id=${AIRS_POD_TO_DB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "web_to_redis_npa_test_id=${WEB_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "web_pod_to_redis_npa_test_id=${WEB_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "web_to_redis_npa_test_id=${WEB_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "web_pod_to_redis_npa_test_id=${WEB_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "cms_to_redis_npa_test_id=${CMS_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "cms_pod_to_redis_npa_test_id=${CMS_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "cms_to_redis_npa_test_id=${CMS_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "cms_pod_to_redis_npa_test_id=${CMS_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "airs_to_redis_npa_test_id=${AIRS_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
-#           # echo "airs_pod_to_redis_npa_test_id=${AIRS_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "airs_to_redis_npa_test_id=${AIRS_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # echo "airs_pod_to_redis_npa_test_id=${AIRS_POD_TO_REDIS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # # echo "web_to_cms_npa_test_id=${WEB_TO_CMS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # # echo "web_to_cms_npa_test_id=${WEB_TO_CMS_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # # echo "cms_to_web_npa_test_id=${CMS_TO_WEB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
+          # # echo "cms_to_web_npa_test_id=${CMS_TO_WEB_NPA_TEST_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "net_compartment_id=${NET_COMPARTMENT_ID}" >> "$GITHUB_OUTPUT"
+          # echo "net_compartment_id=${NET_COMPARTMENT_ID}" >> "$GITHUB_OUTPUT"
 
-#           # echo "net_compartment_id=${NET_COMPARTMENT_ID}" >> "$GITHUB_ENV"
+          # echo "net_compartment_id=${NET_COMPARTMENT_ID}" >> "$GITHUB_ENV"
 
-#       # - name: Subnet Connectivity Check
-#       #   # shell: bash
-#       #   env:
-#       #     WEB_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_db_npa_test_id }}
-#       #     WEB_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_pod_to_db_npa_test_id }}
+      # - name: Subnet Connectivity Check
+      #   # shell: bash
+      #   env:
+      #     WEB_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_db_npa_test_id }}
+      #     WEB_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_pod_to_db_npa_test_id }}
 
-#       #     CMS_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_db_npa_test_id }}
-#       #     CMS_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_pod_to_db_npa_test_id }}
+      #     CMS_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_db_npa_test_id }}
+      #     CMS_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_pod_to_db_npa_test_id }}
 
-#       #     AIRS_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_to_db_npa_test_id }}
-#       #     AIRS_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_pod_to_db_npa_test_id }}
+      #     AIRS_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_to_db_npa_test_id }}
+      #     AIRS_POD_TO_DB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_pod_to_db_npa_test_id }}
 
-#       #     WEB_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_redis_npa_test_id }}
-#       #     WEB_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_pod_to_redis_npa_test_id }}
+      #     WEB_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_redis_npa_test_id }}
+      #     WEB_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_pod_to_redis_npa_test_id }}
 
-#       #     CMS_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_redis_npa_test_id }}
-#       #     CMS_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_pod_to_redis_npa_test_id }}
+      #     CMS_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_redis_npa_test_id }}
+      #     CMS_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_pod_to_redis_npa_test_id }}
 
-#       #     AIRS_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_to_redis_npa_test_id }}
-#       #     AIRS_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_pod_to_redis_npa_test_id }}
+      #     AIRS_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_to_redis_npa_test_id }}
+      #     AIRS_POD_TO_REDIS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.airs_pod_to_redis_npa_test_id }}
 
-#       #     # WEB_TO_CMS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_cms_npa_test_id }}
-#       #     # CMS_TO_WEB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_web_npa_test_id }}
-#       #     OCI_COMPARTMENT_OCID: ${{ steps.get_rm_outputs.outputs.net_compartment_id }}
-#       #     SUPPRESS_LABEL_WARNING: "True"
-#       #   run: |
-#       #     set -euo pipefail
+      #     # WEB_TO_CMS_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.web_to_cms_npa_test_id }}
+      #     # CMS_TO_WEB_NPA_TEST_ID: ${{ steps.get_rm_outputs.outputs.cms_to_web_npa_test_id }}
+      #     OCI_COMPARTMENT_OCID: ${{ steps.get_rm_outputs.outputs.net_compartment_id }}
+      #     SUPPRESS_LABEL_WARNING: "True"
+      #   run: |
+      #     set -euo pipefail
 
-#       #     echo "Running saved NPA test for WEB-to-DB: ${WEB_TO_DB_NPA_TEST_ID}"
+      #     echo "Running saved NPA test for WEB-to-DB: ${WEB_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${WEB_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${WEB_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${WEB_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${WEB_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > web_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > web_to_db_npa_result.json
 
-#       #     WEB_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_db_npa_result.json)
-#       #     WEB_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_db_npa_result.json)
+      #     WEB_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_db_npa_result.json)
+      #     WEB_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_db_npa_result.json)
           
-#       #     echo "${WEB_TO_DB_FW_Route_NPA}"
-#       #     echo "${WEB_TO_DB_RT_Route_NPA}"
+      #     echo "${WEB_TO_DB_FW_Route_NPA}"
+      #     echo "${WEB_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${WEB_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "WEB_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "WEB_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
+      #     if [ "${WEB_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "WEB_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "WEB_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
 
-#       #     ################################
-#       #     echo "Running saved NPA test for WEB-POD-to-DB: ${WEB_POD_TO_DB_NPA_TEST_ID}"
+      #     ################################
+      #     echo "Running saved NPA test for WEB-POD-to-DB: ${WEB_POD_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${WEB_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${WEB_POD_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${WEB_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${WEB_POD_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > web_pod_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > web_pod_to_db_npa_result.json
 
-#       #     WEB_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_pod_to_db_npa_result.json)
-#       #     WEB_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_pod_to_db_npa_result.json)
+      #     WEB_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_pod_to_db_npa_result.json)
+      #     WEB_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_pod_to_db_npa_result.json)
           
-#       #     echo "${WEB_POD_TO_DB_FW_Route_NPA}"
-#       #     echo "${WEB_POD_TO_DB_RT_Route_NPA}"
+      #     echo "${WEB_POD_TO_DB_FW_Route_NPA}"
+      #     echo "${WEB_POD_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${WEB_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "WEB_POD_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "WEB_POD_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
+      #     if [ "${WEB_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "WEB_POD_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "WEB_POD_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for CMS-to-DB: ${CMS_TO_DB_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for CMS-to-DB: ${CMS_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${CMS_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${CMS_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${CMS_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${CMS_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > cms_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > cms_to_db_npa_result.json
             
-#       #     CMS_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_db_npa_result.json)
-#       #     CMS_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_db_npa_result.json)
+      #     CMS_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_db_npa_result.json)
+      #     CMS_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_db_npa_result.json)
           
-#       #     echo "${CMS_TO_DB_FW_Route_NPA}"
-#       #     echo "${CMS_TO_DB_RT_Route_NPA}"
+      #     echo "${CMS_TO_DB_FW_Route_NPA}"
+      #     echo "${CMS_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${CMS_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "CMS_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "CMS_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${CMS_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "CMS_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "CMS_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for CMS-POD-to-DB: ${CMS_POD_TO_DB_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for CMS-POD-to-DB: ${CMS_POD_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${CMS_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${CMS_POD_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${CMS_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${CMS_POD_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > cms_pod_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > cms_pod_to_db_npa_result.json
             
-#       #     CMS_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_pod_to_db_npa_result.json)
-#       #     CMS_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_pod_to_db_npa_result.json)
+      #     CMS_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_pod_to_db_npa_result.json)
+      #     CMS_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_pod_to_db_npa_result.json)
           
-#       #     echo "${CMS_POD_TO_DB_FW_Route_NPA}"
-#       #     echo "${CMS_POD_TO_DB_RT_Route_NPA}"
+      #     echo "${CMS_POD_TO_DB_FW_Route_NPA}"
+      #     echo "${CMS_POD_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${CMS_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "CMS_POD_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "CMS_POD_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${CMS_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "CMS_POD_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "CMS_POD_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for AIRS-to-DB: ${AIRS_TO_DB_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for AIRS-to-DB: ${AIRS_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${AIRS_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${AIRS_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${AIRS_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${AIRS_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > airs_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > airs_to_db_npa_result.json
             
-#       #     AIRS_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_to_db_npa_result.json)
-#       #     AIRS_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_to_db_npa_result.json)
+      #     AIRS_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_to_db_npa_result.json)
+      #     AIRS_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_to_db_npa_result.json)
           
-#       #     echo "${AIRS_TO_DB_FW_Route_NPA}"
-#       #     echo "${AIRS_TO_DB_RT_Route_NPA}"
+      #     echo "${AIRS_TO_DB_FW_Route_NPA}"
+      #     echo "${AIRS_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${AIRS_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "AIRS_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "AIRS_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${AIRS_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "AIRS_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "AIRS_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for AIRS-POD-to-DB: ${AIRS_POD_TO_DB_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for AIRS-POD-to-DB: ${AIRS_POD_TO_DB_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${AIRS_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${AIRS_POD_TO_DB_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${AIRS_POD_TO_DB_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${AIRS_POD_TO_DB_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > airs_pod_to_db_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > airs_pod_to_db_npa_result.json
             
-#       #     AIRS_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_pod_to_db_npa_result.json)
-#       #     AIRS_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_pod_to_db_npa_result.json)
+      #     AIRS_POD_TO_DB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_pod_to_db_npa_result.json)
+      #     AIRS_POD_TO_DB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_pod_to_db_npa_result.json)
           
-#       #     echo "${AIRS_POD_TO_DB_FW_Route_NPA}"
-#       #     echo "${AIRS_POD_TO_DB_RT_Route_NPA}"
+      #     echo "${AIRS_POD_TO_DB_FW_Route_NPA}"
+      #     echo "${AIRS_POD_TO_DB_RT_Route_NPA}"
 
 
-#       #     if [ "${AIRS_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "AIRS_POD_TO_DB_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "AIRS_POD_TO_DB_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${AIRS_POD_TO_DB_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_POD_TO_DB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "AIRS_POD_TO_DB_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "AIRS_POD_TO_DB_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     echo "Running saved NPA test for WEB-to-REDIS: ${WEB_TO_REDIS_NPA_TEST_ID}"
+      #     echo "Running saved NPA test for WEB-to-REDIS: ${WEB_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${WEB_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${WEB_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${WEB_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${WEB_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > web_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > web_to_redis_npa_result.json
 
-#       #     WEB_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_redis_npa_result.json)
-#       #     WEB_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_redis_npa_result.json)
+      #     WEB_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_redis_npa_result.json)
+      #     WEB_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_redis_npa_result.json)
           
-#       #     echo "${WEB_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${WEB_TO_REDIS_RT_Route_NPA}"
+      #     echo "${WEB_TO_REDIS_FW_Route_NPA}"
+      #     echo "${WEB_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${WEB_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "WEB_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "WEB_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
+      #     if [ "${WEB_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "WEB_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "WEB_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
 
-#       #     ################################
-#       #     echo "Running saved NPA test for WEB-POD-to-REDIS: ${WEB_POD_TO_REDIS_NPA_TEST_ID}"
+      #     ################################
+      #     echo "Running saved NPA test for WEB-POD-to-REDIS: ${WEB_POD_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${WEB_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${WEB_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${WEB_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${WEB_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > web_pod_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > web_pod_to_redis_npa_result.json
 
-#       #     WEB_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_pod_to_redis_npa_result.json)
-#       #     WEB_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_pod_to_redis_npa_result.json)
+      #     WEB_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_pod_to_redis_npa_result.json)
+      #     WEB_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_pod_to_redis_npa_result.json)
           
-#       #     echo "${WEB_POD_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${WEB_POD_TO_REDIS_RT_Route_NPA}"
+      #     echo "${WEB_POD_TO_REDIS_FW_Route_NPA}"
+      #     echo "${WEB_POD_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${WEB_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "WEB_POD_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "WEB_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
+      #     if [ "${WEB_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "WEB_POD_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "WEB_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for CMS-to-REDIS: ${CMS_TO_REDIS_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for CMS-to-REDIS: ${CMS_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${CMS_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${CMS_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${CMS_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${CMS_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > cms_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > cms_to_redis_npa_result.json
             
-#       #     CMS_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_redis_npa_result.json)
-#       #     CMS_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_redis_npa_result.json)
+      #     CMS_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_redis_npa_result.json)
+      #     CMS_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_redis_npa_result.json)
           
-#       #     echo "${CMS_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${CMS_TO_REDIS_RT_Route_NPA}"
+      #     echo "${CMS_TO_REDIS_FW_Route_NPA}"
+      #     echo "${CMS_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${CMS_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "CMS_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "CMS_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${CMS_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "CMS_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "CMS_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for CMS-POD-to-REDIS: ${CMS_POD_TO_REDIS_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for CMS-POD-to-REDIS: ${CMS_POD_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${CMS_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${CMS_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${CMS_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${CMS_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > cms_pod_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > cms_pod_to_redis_npa_result.json
             
-#       #     CMS_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_pod_to_redis_npa_result.json)
-#       #     CMS_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_pod_to_redis_npa_result.json)
+      #     CMS_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_pod_to_redis_npa_result.json)
+      #     CMS_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_pod_to_redis_npa_result.json)
           
-#       #     echo "${CMS_POD_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${CMS_POD_TO_REDIS_RT_Route_NPA}"
+      #     echo "${CMS_POD_TO_REDIS_FW_Route_NPA}"
+      #     echo "${CMS_POD_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${CMS_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "CMS_POD_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "CMS_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${CMS_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "CMS_POD_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "CMS_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for AIRS-to-REDIS: ${AIRS_TO_REDIS_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for AIRS-to-REDIS: ${AIRS_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${AIRS_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${AIRS_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${AIRS_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${AIRS_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > airs_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > airs_to_redis_npa_result.json
             
-#       #     AIRS_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_to_redis_npa_result.json)
-#       #     AIRS_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_to_redis_npa_result.json)
+      #     AIRS_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_to_redis_npa_result.json)
+      #     AIRS_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_to_redis_npa_result.json)
           
-#       #     echo "${AIRS_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${AIRS_TO_REDIS_RT_Route_NPA}"
+      #     echo "${AIRS_TO_REDIS_FW_Route_NPA}"
+      #     echo "${AIRS_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${AIRS_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "AIRS_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "AIRS_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${AIRS_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "AIRS_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "AIRS_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     ###############################
-#       #     echo "Running saved NPA test for AIRS-POD-to-REDIS: ${AIRS_POD_TO_REDIS_NPA_TEST_ID}"
+      #     ###############################
+      #     echo "Running saved NPA test for AIRS-POD-to-REDIS: ${AIRS_POD_TO_REDIS_NPA_TEST_ID}"
           
-#       #     oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #       --path-analyzer-test-id "${AIRS_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --wait-for-state SUCCEEDED \
-#       #       --wait-for-state FAILED \
-#       #       --max-wait-seconds 900 \
-#       #       --output json > path_run.json
+      #     oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #       --path-analyzer-test-id "${AIRS_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --wait-for-state SUCCEEDED \
+      #       --wait-for-state FAILED \
+      #       --max-wait-seconds 900 \
+      #       --output json > path_run.json
 
           
-#       #     WR_ID=$(oci vn-monitoring work-request list \
-#       #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #       --resource-id "${AIRS_POD_TO_REDIS_NPA_TEST_ID}" \
-#       #       --sort-by timeAccepted \
-#       #       --sort-order DESC \
-#       #       --limit 1 \
-#       #       --query 'data.items[0].id' \
-#       #       --raw-output)
+      #     WR_ID=$(oci vn-monitoring work-request list \
+      #       --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #       --resource-id "${AIRS_POD_TO_REDIS_NPA_TEST_ID}" \
+      #       --sort-by timeAccepted \
+      #       --sort-order DESC \
+      #       --limit 1 \
+      #       --query 'data.items[0].id' \
+      #       --raw-output)
         
-#       #     WR_STATUS=$(oci vn-monitoring work-request get \
-#       #       --work-request-id "${WR_ID}" \
-#       #       --query 'data.status' \
-#       #       --raw-output)
+      #     WR_STATUS=$(oci vn-monitoring work-request get \
+      #       --work-request-id "${WR_ID}" \
+      #       --query 'data.status' \
+      #       --raw-output)
 
-#       #     oci vn-monitoring work-request-result list \
-#       #       --work-request-id "${WR_ID}"\
-#       #       --all \
-#       #       --result-type PATH_ANALYSIS \
-#       #       --output json > airs_pod_to_redis_npa_result.json
+      #     oci vn-monitoring work-request-result list \
+      #       --work-request-id "${WR_ID}"\
+      #       --all \
+      #       --result-type PATH_ANALYSIS \
+      #       --output json > airs_pod_to_redis_npa_result.json
             
-#       #     AIRS_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_pod_to_redis_npa_result.json)
-#       #     AIRS_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_pod_to_redis_npa_result.json)
+      #     AIRS_POD_TO_REDIS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' airs_pod_to_redis_npa_result.json)
+      #     AIRS_POD_TO_REDIS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' airs_pod_to_redis_npa_result.json)
           
-#       #     echo "${AIRS_POD_TO_REDIS_FW_Route_NPA}"
-#       #     echo "${AIRS_POD_TO_REDIS_RT_Route_NPA}"
+      #     echo "${AIRS_POD_TO_REDIS_FW_Route_NPA}"
+      #     echo "${AIRS_POD_TO_REDIS_RT_Route_NPA}"
 
 
-#       #     if [ "${AIRS_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #       echo "AIRS_POD_TO_REDIS_CONNECTION IS REACHABLE"
-#       #     else
-#       #       echo "AIRS_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
-#       #     fi
-#       #     #####################################
+      #     if [ "${AIRS_POD_TO_REDIS_FW_Route_NPA}" = "REACHABLE" ] && [ "${AIRS_POD_TO_REDIS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #       echo "AIRS_POD_TO_REDIS_CONNECTION IS REACHABLE"
+      #     else
+      #       echo "AIRS_POD_TO_REDIS_CONNECTION IS NOT REACHABLE"
+      #     fi
+      #     #####################################
 
-#       #     # ###############################
-#       #     # echo "Running NPA test for WEB-to-CMS: ${WEB_TO_CMS_NPA_TEST_ID}"
+      #     # ###############################
+      #     # echo "Running NPA test for WEB-to-CMS: ${WEB_TO_CMS_NPA_TEST_ID}"
           
-#       #     # oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #     #   --path-analyzer-test-id "${WEB_TO_CMS_NPA_TEST_ID}" \
-#       #     #   --wait-for-state SUCCEEDED \
-#       #     #   --wait-for-state FAILED \
-#       #     #   --max-wait-seconds 900 \
-#       #     #   --output json > path_run.json
+      #     # oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #     #   --path-analyzer-test-id "${WEB_TO_CMS_NPA_TEST_ID}" \
+      #     #   --wait-for-state SUCCEEDED \
+      #     #   --wait-for-state FAILED \
+      #     #   --max-wait-seconds 900 \
+      #     #   --output json > path_run.json
 
           
-#       #     # WR_ID=$(oci vn-monitoring work-request list \
-#       #     #   --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #     #   --resource-id "${WEB_TO_CMS_NPA_TEST_ID}" \
-#       #     #   --sort-by timeAccepted \
-#       #     #   --sort-order DESC \
-#       #     #   --limit 1 \
-#       #     #   --query 'data.items[0].id' \
-#       #     #   --raw-output)
+      #     # WR_ID=$(oci vn-monitoring work-request list \
+      #     #   --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #     #   --resource-id "${WEB_TO_CMS_NPA_TEST_ID}" \
+      #     #   --sort-by timeAccepted \
+      #     #   --sort-order DESC \
+      #     #   --limit 1 \
+      #     #   --query 'data.items[0].id' \
+      #     #   --raw-output)
         
-#       #     # WR_STATUS=$(oci vn-monitoring work-request get \
-#       #     #   --work-request-id "${WR_ID}" \
-#       #     #   --query 'data.status' \
-#       #     #   --raw-output)
+      #     # WR_STATUS=$(oci vn-monitoring work-request get \
+      #     #   --work-request-id "${WR_ID}" \
+      #     #   --query 'data.status' \
+      #     #   --raw-output)
 
-#       #     # oci vn-monitoring work-request-result list \
-#       #     #   --work-request-id "${WR_ID}"\
-#       #     #   --all \
-#       #     #   --result-type PATH_ANALYSIS \
-#       #     #   --output json > web_to_cms_npa_result.json
+      #     # oci vn-monitoring work-request-result list \
+      #     #   --work-request-id "${WR_ID}"\
+      #     #   --all \
+      #     #   --result-type PATH_ANALYSIS \
+      #     #   --output json > web_to_cms_npa_result.json
             
-#       #     # WEB_TO_CMS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_cms_npa_result.json)
-#       #     # WEB_TO_CMS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_cms_npa_result.json)
+      #     # WEB_TO_CMS_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' web_to_cms_npa_result.json)
+      #     # WEB_TO_CMS_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' web_to_cms_npa_result.json)
           
-#       #     # echo "${WEB_TO_CMS_FW_Route_NPA}"
-#       #     # echo "${WEB_TO_CMS_RT_Route_NPA}"
+      #     # echo "${WEB_TO_CMS_FW_Route_NPA}"
+      #     # echo "${WEB_TO_CMS_RT_Route_NPA}"
 
 
-#       #     # if [ "${WEB_TO_CMS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_CMS_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #     #   echo "WEB_TO_CMS_CONNECTION IS REACHABLE"
-#       #     # else
-#       #     #   echo "WEB_TO_CMS_CONNECTION IS NOT REACHABLE"
-#       #     # fi
-#       #     # #####################################
-#       #     # ###############################
-#       #     # echo "Running NPA test for CMS-to-WEB: ${CMS_TO_WEB_NPA_TEST_ID}"
+      #     # if [ "${WEB_TO_CMS_FW_Route_NPA}" = "REACHABLE" ] && [ "${WEB_TO_CMS_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #     #   echo "WEB_TO_CMS_CONNECTION IS REACHABLE"
+      #     # else
+      #     #   echo "WEB_TO_CMS_CONNECTION IS NOT REACHABLE"
+      #     # fi
+      #     # #####################################
+      #     # ###############################
+      #     # echo "Running NPA test for CMS-to-WEB: ${CMS_TO_WEB_NPA_TEST_ID}"
           
-#       #     # oci vn-monitoring path-analysis get-path-analysis-persisted \
-#       #     #   --path-analyzer-test-id "${CMS_TO_WEB_NPA_TEST_ID}" \
-#       #     #   --wait-for-state SUCCEEDED \
-#       #     #   --wait-for-state FAILED \
-#       #     #   --max-wait-seconds 900 \
-#       #     #   --output json > path_run.json
+      #     # oci vn-monitoring path-analysis get-path-analysis-persisted \
+      #     #   --path-analyzer-test-id "${CMS_TO_WEB_NPA_TEST_ID}" \
+      #     #   --wait-for-state SUCCEEDED \
+      #     #   --wait-for-state FAILED \
+      #     #   --max-wait-seconds 900 \
+      #     #   --output json > path_run.json
 
           
-#       #     # WR_ID=$(oci vn-monitoring work-request list \
-#       #     #   --compartment-id "${OCI_COMPARTMENT_OCID}" \
-#       #     #   --resource-id "${CMS_TO_WEB_NPA_TEST_ID}" \
-#       #     #   --sort-by timeAccepted \
-#       #     #   --sort-order DESC \
-#       #     #   --limit 1 \
-#       #     #   --query 'data.items[0].id' \
-#       #     #   --raw-output)
+      #     # WR_ID=$(oci vn-monitoring work-request list \
+      #     #   --compartment-id "${OCI_COMPARTMENT_OCID}" \
+      #     #   --resource-id "${CMS_TO_WEB_NPA_TEST_ID}" \
+      #     #   --sort-by timeAccepted \
+      #     #   --sort-order DESC \
+      #     #   --limit 1 \
+      #     #   --query 'data.items[0].id' \
+      #     #   --raw-output)
         
-#       #     # WR_STATUS=$(oci vn-monitoring work-request get \
-#       #     #   --work-request-id "${WR_ID}" \
-#       #     #   --query 'data.status' \
-#       #     #   --raw-output)
+      #     # WR_STATUS=$(oci vn-monitoring work-request get \
+      #     #   --work-request-id "${WR_ID}" \
+      #     #   --query 'data.status' \
+      #     #   --raw-output)
 
-#       #     # oci vn-monitoring work-request-result list \
-#       #     #   --work-request-id "${WR_ID}"\
-#       #     #   --all \
-#       #     #   --result-type PATH_ANALYSIS \
-#       #     #   --output json > cms_to_web_npa_result.json
+      #     # oci vn-monitoring work-request-result list \
+      #     #   --work-request-id "${WR_ID}"\
+      #     #   --all \
+      #     #   --result-type PATH_ANALYSIS \
+      #     #   --output json > cms_to_web_npa_result.json
             
-#       #     # CMS_TO_WEB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_web_npa_result.json)
-#       #     # CMS_TO_WEB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_web_npa_result.json)
+      #     # CMS_TO_WEB_FW_Route_NPA=$(jq -r '.data.items[0].paths[0]["forward-route"]["reachability-status"]' cms_to_web_npa_result.json)
+      #     # CMS_TO_WEB_RT_Route_NPA=$(jq -r '.data.items[0].paths[0]["return-route"]["reachability-status"]' cms_to_web_npa_result.json)
           
-#       #     # echo "${CMS_TO_WEB_FW_Route_NPA}"
-#       #     # echo "${CMS_TO_WEB_RT_Route_NPA}"
+      #     # echo "${CMS_TO_WEB_FW_Route_NPA}"
+      #     # echo "${CMS_TO_WEB_RT_Route_NPA}"
 
 
-#       #     # if [ "${CMS_TO_WEB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_WEB_RT_Route_NPA}"  = "REACHABLE" ]; then
-#       #     #   echo "CMS_TO_WEB_CONNECTION IS REACHABLE"
-#       #     # else
-#       #     #   echo "CMS_TO_WEB_CONNECTION IS NOT REACHABLE"
-#       #     # fi
-#       #     # #####################################
+      #     # if [ "${CMS_TO_WEB_FW_Route_NPA}" = "REACHABLE" ] && [ "${CMS_TO_WEB_RT_Route_NPA}"  = "REACHABLE" ]; then
+      #     #   echo "CMS_TO_WEB_CONNECTION IS REACHABLE"
+      #     # else
+      #     #   echo "CMS_TO_WEB_CONNECTION IS NOT REACHABLE"
+      #     # fi
+      #     # #####################################
 
-#       # - name: Read apply outputs
-#       #   id: get_rm_outputs
-#       #   shell: bash
-#       #   env:
-#       #     APPLY_JOB_ID: ${{ steps.create_apply.outputs.apply_job_id }}
-#       #   run: |
-#       #     set -euo pipefail
+      # - name: Read apply outputs
+      #   id: get_rm_outputs
+      #   shell: bash
+      #   env:
+      #     APPLY_JOB_ID: ${{ steps.create_apply.outputs.apply_job_id }}
+      #   run: |
+      #     set -euo pipefail
 
-#       #     oci resource-manager job-output-summary list-job-outputs \
-#       #     --job-id "${APPLY_JOB_ID}" \
-#       #     --all \
-#       #     --output json > rm_outputs.json
+      #     oci resource-manager job-output-summary list-job-outputs \
+      #     --job-id "${APPLY_JOB_ID}" \
+      #     --all \
+      #     --output json > rm_outputs.json
 
-#       #     OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="oke_cluster_ocid") | ."output-value"' rm_outputs.json)
-#       #     LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_subnet_ocid") | ."output-value"' rm_outputs.json)
-#       #     LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_nsg_ocid") | ."output-value"' rm_outputs.json)
-#       #     LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
+      #     OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="oke_cluster_ocid") | ."output-value"' rm_outputs.json)
+      #     LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_subnet_ocid") | ."output-value"' rm_outputs.json)
+      #     LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_nsg_ocid") | ."output-value"' rm_outputs.json)
+      #     LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
 
-#       #     for v in OKE_CLUSTER_OCID LB_SUBNET_OCID LB_NSG_OCID LB_RESERVED_PUBLIC_IP_OCID; do
-#       #       val="${!v:-}"
-#       #       if [ -z "${val}" ] || [ "${val}" = "null" ]; then
-#       #          echo "ERROR: ${v} is empty or null"
-#       #          exit 1
-#       #       fi
-#       #     done
+      #     for v in OKE_CLUSTER_OCID LB_SUBNET_OCID LB_NSG_OCID LB_RESERVED_PUBLIC_IP_OCID; do
+      #       val="${!v:-}"
+      #       if [ -z "${val}" ] || [ "${val}" = "null" ]; then
+      #          echo "ERROR: ${v} is empty or null"
+      #          exit 1
+      #       fi
+      #     done
 
-#       #     cat > infra-outputs.env <<EOF
-#       #     OKE_CLUSTER_OCID=${OKE_CLUSTER_OCID}
-#       #     LB_SUBNET_OCID=${LB_SUBNET_OCID}
-#       #     LB_NSG_OCID=${LB_NSG_OCID}
-#       #     LB_RESERVED_PUBLIC_IP_OCID=${LB_RESERVED_PUBLIC_IP_OCID}
-#       #     EOF
+      #     cat > infra-outputs.env <<EOF
+      #     OKE_CLUSTER_OCID=${OKE_CLUSTER_OCID}
+      #     LB_SUBNET_OCID=${LB_SUBNET_OCID}
+      #     LB_NSG_OCID=${LB_NSG_OCID}
+      #     LB_RESERVED_PUBLIC_IP_OCID=${LB_RESERVED_PUBLIC_IP_OCID}
+      #     EOF
       
       
-#       - name: Upload RM outputs artifact
-#         uses: actions/upload-artifact@v7
-#         with:
-#           name: rm_outputs
-#           path: rm_outputs.json
+      - name: Upload RM outputs artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rm_outputs
+          path: rm_outputs.json
 
-#   # create_stg_prometheus_lb_service:
-#   #   name: STG Ingress-Nginx and Prometheus LoadBalancer
-#   #   runs-on: ubuntu-latest
-#   #   needs: apply
+  # create_stg_prometheus_lb_service:
+  #   name: STG Ingress-Nginx and Prometheus LoadBalancer
+  #   runs-on: ubuntu-latest
+  #   needs: apply
 
-#   #   env:
-#   #     OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
-#   #     OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
-#   #     OCI_REGION: ${{ secrets.OCI_REGION }}
-#   #     OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-#   #     OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-#   #     OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
+  #   env:
+  #     OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+  #     OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+  #     OCI_REGION: ${{ secrets.OCI_REGION }}
+  #     OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  #     OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+  #     OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
 
-#   #   steps:
-#   #     - name: Download RM outputs artifact
-#   #       uses: actions/download-artifact@v8
-#   #       with:
-#   #         name: rm_outputs
+  #   steps:
+  #     - name: Download RM outputs artifact
+  #       uses: actions/download-artifact@v8
+  #       with:
+  #         name: rm_outputs
 
-#   #     - name: List download file
-#   #       run: | 
-#   #         pwd
-#   #         ls -al
+  #     - name: List download file
+  #       run: | 
+  #         pwd
+  #         ls -al
 
-#   #     - name: Parse RM outputs
-#   #       shell: bash
-#   #       run: |
-#   #         set -euo pipefail
+  #     - name: Parse RM outputs
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
 
-#   #         BASTION_PUBLIC_IP=$(jq -r '.data.items[] | select(."output-name"=="stg_bastion_public_ip") | ."output-value"' rm_outputs.json)
-#   #         STG_OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="airs_oke_cluster_ocid") | ."output-value"' rm_outputs.json)
-#   #         LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_subnet_ocid") | ."output-value"' rm_outputs.json)
-#   #         LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_nsg_ocid") | ."output-value"' rm_outputs.json)
-#   #         # LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
+  #         BASTION_PUBLIC_IP=$(jq -r '.data.items[] | select(."output-name"=="stg_bastion_public_ip") | ."output-value"' rm_outputs.json)
+  #         STG_OKE_CLUSTER_OCID=$(jq -r '.data.items[] | select(."output-name"=="airs_oke_cluster_ocid") | ."output-value"' rm_outputs.json)
+  #         LB_SUBNET_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_subnet_ocid") | ."output-value"' rm_outputs.json)
+  #         LB_NSG_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_nsg_ocid") | ."output-value"' rm_outputs.json)
+  #         # LB_RESERVED_PUBLIC_IP_OCID=$(jq -r '.data.items[] | select(."output-name"=="stg_lb_reserved_public_ip_ocid") | ."output-value"' rm_outputs.json)
 
-#   #         for v in STG_OKE_CLUSTER_OCID LB_SUBNET_OCID LB_NSG_OCID; do
-#   #           val="${!v:-}"
-#   #           if [ -z "${val}" ] || [ "${val}" = "null" ]; then
-#   #             echo "::error::${v} is empty or null"
-#   #             exit 1
-#   #           fi
-#   #         done
+  #         for v in STG_OKE_CLUSTER_OCID LB_SUBNET_OCID LB_NSG_OCID; do
+  #           val="${!v:-}"
+  #           if [ -z "${val}" ] || [ "${val}" = "null" ]; then
+  #             echo "::error::${v} is empty or null"
+  #             exit 1
+  #           fi
+  #         done
  
-#   #         echo "BASTION_PUBLIC_IP=${BASTION_PUBLIC_IP}" >> "$GITHUB_ENV"
-#   #         echo "STG_OKE_CLUSTER_OCID=${STG_OKE_CLUSTER_OCID}" >> "$GITHUB_ENV"
-#   #         echo "LB_SUBNET_OCID=${LB_SUBNET_OCID}" >> "$GITHUB_ENV"
-#   #         echo "LB_NSG_OCID=${LB_NSG_OCID}" >> "$GITHUB_ENV"
-#   #         # echo "LB_RESERVED_PUBLIC_IP_OCID=${LB_RESERVED_PUBLIC_IP_OCID}" >> "$GITHUB_ENV"
+  #         echo "BASTION_PUBLIC_IP=${BASTION_PUBLIC_IP}" >> "$GITHUB_ENV"
+  #         echo "STG_OKE_CLUSTER_OCID=${STG_OKE_CLUSTER_OCID}" >> "$GITHUB_ENV"
+  #         echo "LB_SUBNET_OCID=${LB_SUBNET_OCID}" >> "$GITHUB_ENV"
+  #         echo "LB_NSG_OCID=${LB_NSG_OCID}" >> "$GITHUB_ENV"
+  #         # echo "LB_RESERVED_PUBLIC_IP_OCID=${LB_RESERVED_PUBLIC_IP_OCID}" >> "$GITHUB_ENV"
 
 
-#   #     - name: Checkout repo
-#   #       uses: actions/checkout@v6
+  #     - name: Checkout repo
+  #       uses: actions/checkout@v6
 
-#   #     - name: Install OCI CLI
-#   #       run: |
-#   #         python3 -m pip install --upgrade pip
-#   #         python3 -m pip install oci-cli
+  #     - name: Install OCI CLI
+  #       run: |
+  #         python3 -m pip install --upgrade pip
+  #         python3 -m pip install oci-cli
 
-#   #     - name: Configure OCI CLI
-#   #       shell: bash
-#   #       run: |
-#   #         set -euo pipefail
+  #     - name: Configure OCI CLI
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
 
-#   #         mkdir -p ~/.oci
-#   #         chmod 700 ~/.oci
+  #         mkdir -p ~/.oci
+  #         chmod 700 ~/.oci
 
-#   #         printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
-#   #         chmod 600 ~/.oci/oci_api_key.pem
+  #         printf '%s\n' "${OCI_PRIVATE_KEY}" > ~/.oci/oci_api_key.pem
+  #         chmod 600 ~/.oci/oci_api_key.pem
 
-#   #         cat > ~/.oci/config <<EOF
-#   #         [DEFAULT]
-#   #         user=${OCI_USER_OCID}
-#   #         tenancy=${OCI_TENANCY_OCID}
-#   #         region=${OCI_REGION}
-#   #         fingerprint=${OCI_FINGERPRINT}
-#   #         key_file=${HOME}/.oci/oci_api_key.pem
-#   #         EOF
+  #         cat > ~/.oci/config <<EOF
+  #         [DEFAULT]
+  #         user=${OCI_USER_OCID}
+  #         tenancy=${OCI_TENANCY_OCID}
+  #         region=${OCI_REGION}
+  #         fingerprint=${OCI_FINGERPRINT}
+  #         key_file=${HOME}/.oci/oci_api_key.pem
+  #         EOF
 
-#   #         chmod 600 ~/.oci/config
+  #         chmod 600 ~/.oci/config
 
-#   #     - name: Install kubectl
-#   #       uses: Azure/setup-kubectl@v5.1.0
-#   #       with:
-#   #         version: latest
+  #     - name: Install kubectl
+  #       uses: Azure/setup-kubectl@v5.1.0
+  #       with:
+  #         version: latest
     
-#   #     - name: Get OKE private API endpoint
-#   #       shell: bash
-#   #       run: |
-#   #         set -euo pipefail
+  #     - name: Get OKE private API endpoint
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
 
-#   #         ENDPOINT=$(oci ce cluster get \
-#   #           --cluster-id "$STG_OKE_CLUSTER_OCID" \
-#   #           --region ap-singapore-1 \
-#   #           | jq -r '.data.endpoints."private-endpoint"')
+  #         ENDPOINT=$(oci ce cluster get \
+  #           --cluster-id "$STG_OKE_CLUSTER_OCID" \
+  #           --region ap-singapore-1 \
+  #           | jq -r '.data.endpoints."private-endpoint"')
 
-#   #         if [[ -z "$ENDPOINT" || "$ENDPOINT" == "null" ]]; then
-#   #            echo "::error::Private endpoint not found"
-#   #            exit 1
-#   #         fi
+  #         if [[ -z "$ENDPOINT" || "$ENDPOINT" == "null" ]]; then
+  #            echo "::error::Private endpoint not found"
+  #            exit 1
+  #         fi
 
-#   #         # Example: https://10.0.1.6:6443
-#   #         HOSTPORT="${ENDPOINT#https://}"
-#   #         OKE_API_PRIVATE_IP="${HOSTPORT%%:*}"
-#   #         OKE_API_PRIVATE_PORT="${HOSTPORT##*:}"
+  #         # Example: https://10.0.1.6:6443
+  #         HOSTPORT="${ENDPOINT#https://}"
+  #         OKE_API_PRIVATE_IP="${HOSTPORT%%:*}"
+  #         OKE_API_PRIVATE_PORT="${HOSTPORT##*:}"
 
-#   #         echo "OKE_API_PRIVATE_IP=$OKE_API_PRIVATE_IP" >> $GITHUB_ENV
-#   #         echo "OKE_API_PRIVATE_PORT=$OKE_API_PRIVATE_PORT" >> $GITHUB_ENV
+  #         echo "OKE_API_PRIVATE_IP=$OKE_API_PRIVATE_IP" >> $GITHUB_ENV
+  #         echo "OKE_API_PRIVATE_PORT=$OKE_API_PRIVATE_PORT" >> $GITHUB_ENV
 
-#   #         echo "OKE private API: $OKE_API_PRIVATE_IP:$OKE_API_PRIVATE_PORT"
+  #         echo "OKE private API: $OKE_API_PRIVATE_IP:$OKE_API_PRIVATE_PORT"
       
-#   #     - name: Start SSH tunnel via bastion
-#   #       shell: bash
-#   #       env:
-#   #         BASTION_SSH_PRIVATE_KEY: ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
-#   #         BASTION_USER: ${{ secrets.BASTION_USER }}
-#   #         OKE_API_PRIVATE_IP: ${{ env.OKE_API_PRIVATE_IP }}
-#   #         OKE_API_PRIVATE_PORT: ${{ env.OKE_API_PRIVATE_PORT }}
-#   #         OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
-#   #       run: |
-#   #        set -euo pipefail
-
-#   #        mkdir -p ~/.ssh
-#   #        echo "$BASTION_SSH_PRIVATE_KEY" > ~/.ssh/bastion.pem
-#   #        chmod 600 ~/.ssh/bastion.pem
-
-#   #        ssh -i ~/.ssh/bastion.pem \
-#   #          -o StrictHostKeyChecking=no \
-#   #          -o UserKnownHostsFile=/dev/null \
-#   #          -N \
-#   #          -L 6443:${OKE_API_PRIVATE_IP}:${OKE_API_PRIVATE_PORT} \
-#   #          ${BASTION_USER}@${BASTION_PUBLIC_IP} &
-
-
-#   #     - name: Create kubeconfig for OKE
-#   #       shell: bash
-#   #       run: |
-#   #         set -euo pipefail
-#   #         mkdir -p "$HOME/.kube"
-
-#   #         oci ce cluster create-kubeconfig \
-#   #           --cluster-id "${STG_OKE_CLUSTER_OCID}" \
-#   #           --file "$HOME/.kube/config" \
-#   #           --region ap-singapore-1 \
-#   #           --token-version 2.0.0 \
-#   #           --kube-endpoint PRIVATE_ENDPOINT \
-#   #           --overwrite
-
-#   #         # Update kubeconfig to use localhost (SSH tunnel endpoint)
-#   #         sed -i 's/https:\/\/[^:]\+:6443/https:\/\/127.0.0.1:6443/g' ~/.kube/config
-#   #         cat ~/.kube/config
-
-#   #         export KUBECONFIG="$HOME/.kube/config"
-#   #         kubectl get nodes
-
-#   #     # - name: Apply DevOps-managed Web Cluster LoadBalancer 
-#   #     #   shell: bash
-#   #     #   run: |
-#   #     #     set -euo pipefail
-#   #     #     export KUBECONFIG="$HOME/.kube/config"
-
-#   #     #     cat <<EOF > oke-lb-service.yaml
-#   #     #     apiVersion: v1
-#   #     #     kind: Service
-#   #     #     metadata:
-#   #     #       name: web-lb
-#   #     #       namespace: default
-#   #     #       annotations:
-#   #     #         oci.oraclecloud.com/load-balancer-type: "lb"
-#   #     #         service.beta.kubernetes.io/oci-load-balancer-subnet1: "${LB_SUBNET_OCID}"
-#   #     #         oci.oraclecloud.com/oci-network-security-groups: "${LB_NSG_OCID}"
-#   #     #         service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
-#   #     #         service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
-#   #     #         service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
-#   #     #         service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
-#   #     #         # service.beta.kubernetes.io/oci-load-balancer-ssl-ports: "443"
-#   #     #         # oci.oraclecloud.com/oci-load-balancer-listener-ssl-config: '{"CipherSuiteName":"oci-tls-12-ssl-cipher-suite-v3", "Protocols":["TLSv1.2"]}'
-#   #     #         # service.beta.kubernetes.io/oci-load-balancer-tls-secret: ssl-certificate-secret
-#   #     #         # service.beta.kubernetes.io/oci-load-balancer-backend-protocol: "HTTP"
-#   #     #     spec:
-#   #     #       loadBalancerIP: "${LB_RESERVED_PUBLIC_IP_OCID}"
-#   #     #       type: LoadBalancer
-#   #     #       selector:
-#   #     #         app: myapp
-#   #     #       ports:
-#   #     #         - name: http
-#   #     #           port: 80
-#   #     #           targetPort: 80
-#   #     #         - name: https
-#   #     #           port: 443
-#   #     #           targetPort: 80
-#   #     #       selector:
-#   #     #         app: cake
-#   #     #     EOF
-
-#   #     #     # cat oke-lb-service.yaml
-#   #     #     # kubectl apply -f oke-lb-service.yaml
-#   #     #     # kubectl get svc web-lb -o wide
-
-#   #     # - name: Deploy TLS secret
-#   #     #   shell: bash
-#   #     #   env:
-#   #     #     TLSCRT: ${{ secrets.TLSCRT }}
-#   #     #     TLSKEY: ${{ secrets.TLSKEY }}
-#   #     #   run: |
-#   #     #     set -euo pipefail
-#   #     #     cat > secret.yaml <<EOF
-#   #     #     apiVersion: v1
-#   #     #     kind: Secret
-#   #     #     metadata:
-#   #     #       name: ssl-certificate-secret
-#   #     #     type: kubernetes.io/tls
-#   #     #     stringData:
-#   #     #       tls.crt: |
-#   #     #     $(printf '%s\n' "$TLSCRT" | sed 's/^/        /')
-#   #     #       tls.key: |
-#   #     #     $(printf '%s\n' "$TLSKEY" | sed 's/^/        /')
-#   #     #     EOF
-
-#   #     #     # kubectl apply -f secret.yaml
-#   #     #     # kubectl get secret ssl-certificate-secret
-
-#   #     - name: Install Helm
-#   #       uses: azure/setup-helm@v5.0.0
-
-#   #     - name: Add Prometheus Helm Repo
-#   #       run: |
-#   #         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-#   #         helm repo update
-
-#   #     - name: Install Prometheus Stack
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-#   #         # # Install Blackbox Exporter
-#   #         # if helm status blackbox -n monitoring > /dev/null 2>&1; then
-#   #         #   echo "blackbox Helm release already exists in monitoring, skipping Helm install."
-#   #         # else
-#   #         #   echo "blackbox Helm release not found, installing..."
-#   #         #   helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter \
-#   #         #     --namespace monitoring 
-#   #         # fi
-
-#   #         helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter -f ./observability/blackbox-custom-values.yml \
-#   #           --namespace monitoring
-
-#   #         # # Skip prometheus install if release already exists
-#   #         # if helm status kube-prometheus-stack -n monitoring > /dev/null 2>&1; then
-#   #         #   echo "kube-prometheus-stack Helm release already exists in monitoring, skipping Helm install."
-#   #         # else
-#   #         #   echo "kube-prometheus-stack Helm release not found, installing..."
-#   #         #   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -f values.yaml \
-#   #         #     --namespace monitoring \
-#   #         #     --set prometheus.service.type=ClusterIP 
-#   #         # fi
-
-#   #         helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -f ./observability/prometheus-custom-values.yml \
-#   #           --namespace monitoring \
-#   #           --set prometheus.service.type=ClusterIP
-
-#   #         ### Check helm list ####
-
-#   #         helm list -n monitoring
-
-#   #     - name: Install Redis-Exporter-Primary Helm Chart
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-#   #         cat <<EOF > stg-redis-primary-values.yml
-#   #         redisAddress: rediss://aaa6svk5iiaqs2cedo7rg6zhz5e43e6z2rinddhraxpgz4gwip7kvoa-p.redis.ap-singapore-1.oci.oraclecloud.com:6379
-#   #         image:
-#   #           repository: docker.io/oliver006/redis_exporter
-#   #           tag: v1.88.0
-#   #           pullPolicy: IfNotPresent
-
-#   #         serviceMonitor:
-#   #           enabled: true
-#   #           interval: 30s
-#   #           namespace: monitoring
-
-#   #           labels:
-#   #             release: kube-prometheus-stack
-
-#   #         prometheus:
-#   #           monitor:
-#   #             enabled: true
-#   #         EOF
-
-#   #         cat stg-redis-primary-values.yml
-
-
-#   #         # Skip redis-exporter-primary install if release already exists
-#   #         if helm status redis-exporter-primary -n monitoring > /dev/null 2>&1; then
-#   #           echo "redis-exporter-primary Helm release already exists in monitoring, skipping Helm install."
-#   #         else
-#   #           echo "redis-exporter-primary Helm release not found, installing..."
-#   #           helm install redis-exporter-primary prometheus-community/prometheus-redis-exporter \
-#   #             --namespace monitoring \
-#   #             -f stg-redis-primary-values.yml
-#   #         fi
-
-#   #     - name: Install Redis-Exporter-Replica Helm Chart
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-#   #         cat <<EOF > stg-redis-replica-values.yml
-#   #         redisAddress: rediss://aaa6svk5iiaqs2cedo7rg6zhz5e43e6z2rinddhraxpgz4gwip7kvoa-r.redis.ap-singapore-1.oci.oraclecloud.com:6379
-#   #         image:
-#   #           repository: docker.io/oliver006/redis_exporter
-#   #           tag: v1.88.0
-#   #           pullPolicy: IfNotPresent
-
-#   #         serviceMonitor:
-#   #           enabled: true
-#   #           interval: 30s
-#   #           namespace: monitoring
-
-#   #           labels:
-#   #             release: kube-prometheus-stack
-
-#   #         prometheus:
-#   #           monitor:
-#   #             enabled: true
-#   #         EOF
-
-#   #         cat stg-redis-replica-values.yml
-
-
-#   #         # Skip redis-exporter-replica install if release already exists
-#   #         if helm status redis-exporter-replica -n monitoring > /dev/null 2>&1; then
-#   #           echo "redis-exporter-replica Helm release already exists in monitoring, skipping Helm install."
-#   #         else
-#   #           echo "redis-exporter-replica Helm release not found, installing..."
-#   #           helm install redis-exporter-replica prometheus-community/prometheus-redis-exporter \
-#   #             --namespace monitoring \
-#   #             -f stg-redis-replica-values.yml
-#   #         fi
-
-#   #     - name: Apply DevOps-managed Prometheus Internal LoadBalancer 
-#   #       shell: bash
-#   #       run: |
-#   #         set -euo pipefail
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         cat <<EOF > prometheus-lb-service.yaml
-#   #         ---
-#   #         apiVersion: v1
-#   #         kind: Service
-#   #         metadata:
-#   #           name: prometheus-lb
-#   #           namespace: monitoring
-#   #           annotations:
-#   #             oci.oraclecloud.com/load-balancer-type: "lb"
-#   #             service.beta.kubernetes.io/oci-load-balancer-internal: "true"
-#   #             service.beta.kubernetes.io/oci-load-balancer-subnet1: "${LB_SUBNET_OCID}"
-#   #             oci.oraclecloud.com/oci-network-security-groups: "${LB_NSG_OCID}"
-#   #             service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
-#   #         spec:
-#   #           type: LoadBalancer
-#   #           selector:
-#   #             app.kubernetes.io/name: prometheus
-#   #             app.kubernetes.io/instance: kube-prometheus-stack-prometheus
-#   #           ports:
-#   #             - name: http
-#   #               port: 9090
-#   #               targetPort: 9090
-#   #               protocol: TCP
-#   #         EOF
-#   #         cat prometheus-lb-service.yaml
-#   #         kubectl apply -f prometheus-lb-service.yaml
-#   #         kubectl -n monitoring get svc prometheus-lb -o wide
-
-#   #     # - name: Install NGINX Gateway Fabric
-#   #     #   run: |
-#   #     #     export KUBECONFIG="$HOME/.kube/config"
-
-#   #     #     kubectl create namespace nginx-gateway --dry-run=client -o yaml | kubectl apply -f -
-
-#   #     #     # Install Gateway API CRDs (safe re-apply)
-#   #     #     kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
-
-#   #     #     # Install Helm chart (skip if exists)
-#   #     #     if helm status ngf -n nginx-gateway > /dev/null 2>&1; then
-#   #     #        echo "NGINX Gateway Fabric already installed, skipping..."
-#   #     #     else
-#   #     #       echo "Installing NGINX Gateway Fabric..."
-#   #     #       helm upgrade --install ngf oci://ghcr.io/nginx/charts/nginx-gateway-fabric \
-#   #     #         --namespace nginx-gateway \
-#   #     #         --set service.type=LoadBalancer \
-#   #     #         --set gatewayClass.name=nginx
-#   #     #     fi
-
-#   #     - name: Install NGINX Ingress Controller
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
-
-#   #         # Add repo if not already added
-#   #         helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
-#   #         helm repo update
-
-#   #         # Skip install if already exists
-#   #         if helm status ingress-nginx-new -n ingress-nginx > /dev/null 2>&1; then
-#   #           echo "ingress-nginx-new already installed, skipping..."
-#   #         else
-#   #           echo "Installing ingress-nginx-new..."
-
-#   #           helm upgrade --install ingress-nginx-new ingress-nginx/ingress-nginx \
-#   #           --namespace ingress-nginx \
-#   #           --set controller.name=custom-nginx \
-#   #           --set controller.ingressClassResource.name=custom-nginx \
-#   #           --set controller.ingressClass=custom-nginx \
-#   #           --set controller.electionID=custom-nginx-leader \
-#   #           --set controller.service.type=LoadBalancer \
-#   #           --set controller.publishService.enabled=true \
-#   #           --set controller.service.annotations."service\.beta\.kubernetes\.io/oci-load-balancer-subnet1"="${LB_SUBNET_OCID}" \
-#   #           --set controller.service.annotations."oci\.oraclecloud\.com/oci-network-security-groups"="${LB_NSG_OCID}" \
-#   #           --set controller.service.annotations."service\.beta\.kubernetes\.io/oci-load-balancer-security-list-management-mode"="None" \
-#   #           --set controller.service.annotations."oci\.oraclecloud\.com/load-balancer-type"="lb"
-#   #         fi
-
-#   #     - name: Loki Setup
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
-
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-
-#   #         # Add repo if not already added
-#   #         helm repo add grafana https://grafana.github.io/helm-charts || true
-#   #         helm repo update
-
-#   #         cat <<EOF > loki-custom-values.yaml
-
-#   #         deploymentMode: SingleBinary
-#   #         singleBinary:
-#   #           replicas: 1
-#   #           autoscaling:
-#   #           # -- Enable autoscaling
-#   #             enabled: true
-#   #           service:
-#   #             type: LoadBalancer
-#   #             annotations:
-#   #               oci.oraclecloud.com/load-balancer-type: "lb"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-internal: "true"
-
-#   #               oci.oraclecloud.com/oci-network-security-groups: "ocid1.networksecuritygroup.oc1.ap-singapore-1.aaaaaaaazp36gnkorhr5kmhithphvsaw7ca75yw77dzrzag7m6zj3iteytea"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-subnet1: "ocid1.subnet.oc1.ap-singapore-1.aaaaaaaa6ofzms5vzszg52x3zvubdogd463qqneeg7om3bdys7qqbype3qxa"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
-
-#   #               service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
-#   #             ports:
-#   #               http:
-#   #                 port: 3100
-#   #                 targetPort: http
-#   #         backend:
-#   #           replicas: 0
-#   #         read:
-#   #           replicas: 0
-#   #         write:
-#   #           replicas: 0
-#   #         lokiCanary:
-#   #           enabled: false
-#   #         test:
-#   #           enabled: false
-
-#   #         loki:
-#   #           auth_enabled: false
-#   #           limits_config:
-#   #             allow_structured_metadata: true
-#   #             volume_enabled: true
-#   #             retention_period: 720h   # 30 days
+  #     - name: Start SSH tunnel via bastion
+  #       shell: bash
+  #       env:
+  #         BASTION_SSH_PRIVATE_KEY: ${{ secrets.BASTION_SSH_PRIVATE_KEY }}
+  #         BASTION_USER: ${{ secrets.BASTION_USER }}
+  #         OKE_API_PRIVATE_IP: ${{ env.OKE_API_PRIVATE_IP }}
+  #         OKE_API_PRIVATE_PORT: ${{ env.OKE_API_PRIVATE_PORT }}
+  #         OCI_PRIVATE_KEY_PASSPHRASE: ${{ secrets.OCI_PRIVATE_KEY_PASSPHRASE }}
+  #       run: |
+  #        set -euo pipefail
+
+  #        mkdir -p ~/.ssh
+  #        echo "$BASTION_SSH_PRIVATE_KEY" > ~/.ssh/bastion.pem
+  #        chmod 600 ~/.ssh/bastion.pem
+
+  #        ssh -i ~/.ssh/bastion.pem \
+  #          -o StrictHostKeyChecking=no \
+  #          -o UserKnownHostsFile=/dev/null \
+  #          -N \
+  #          -L 6443:${OKE_API_PRIVATE_IP}:${OKE_API_PRIVATE_PORT} \
+  #          ${BASTION_USER}@${BASTION_PUBLIC_IP} &
+
+
+  #     - name: Create kubeconfig for OKE
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         mkdir -p "$HOME/.kube"
+
+  #         oci ce cluster create-kubeconfig \
+  #           --cluster-id "${STG_OKE_CLUSTER_OCID}" \
+  #           --file "$HOME/.kube/config" \
+  #           --region ap-singapore-1 \
+  #           --token-version 2.0.0 \
+  #           --kube-endpoint PRIVATE_ENDPOINT \
+  #           --overwrite
+
+  #         # Update kubeconfig to use localhost (SSH tunnel endpoint)
+  #         sed -i 's/https:\/\/[^:]\+:6443/https:\/\/127.0.0.1:6443/g' ~/.kube/config
+  #         cat ~/.kube/config
+
+  #         export KUBECONFIG="$HOME/.kube/config"
+  #         kubectl get nodes
+
+  #     # - name: Apply DevOps-managed Web Cluster LoadBalancer 
+  #     #   shell: bash
+  #     #   run: |
+  #     #     set -euo pipefail
+  #     #     export KUBECONFIG="$HOME/.kube/config"
+
+  #     #     cat <<EOF > oke-lb-service.yaml
+  #     #     apiVersion: v1
+  #     #     kind: Service
+  #     #     metadata:
+  #     #       name: web-lb
+  #     #       namespace: default
+  #     #       annotations:
+  #     #         oci.oraclecloud.com/load-balancer-type: "lb"
+  #     #         service.beta.kubernetes.io/oci-load-balancer-subnet1: "${LB_SUBNET_OCID}"
+  #     #         oci.oraclecloud.com/oci-network-security-groups: "${LB_NSG_OCID}"
+  #     #         service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+  #     #         service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+  #     #         service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+  #     #         service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
+  #     #         # service.beta.kubernetes.io/oci-load-balancer-ssl-ports: "443"
+  #     #         # oci.oraclecloud.com/oci-load-balancer-listener-ssl-config: '{"CipherSuiteName":"oci-tls-12-ssl-cipher-suite-v3", "Protocols":["TLSv1.2"]}'
+  #     #         # service.beta.kubernetes.io/oci-load-balancer-tls-secret: ssl-certificate-secret
+  #     #         # service.beta.kubernetes.io/oci-load-balancer-backend-protocol: "HTTP"
+  #     #     spec:
+  #     #       loadBalancerIP: "${LB_RESERVED_PUBLIC_IP_OCID}"
+  #     #       type: LoadBalancer
+  #     #       selector:
+  #     #         app: myapp
+  #     #       ports:
+  #     #         - name: http
+  #     #           port: 80
+  #     #           targetPort: 80
+  #     #         - name: https
+  #     #           port: 443
+  #     #           targetPort: 80
+  #     #       selector:
+  #     #         app: cake
+  #     #     EOF
+
+  #     #     # cat oke-lb-service.yaml
+  #     #     # kubectl apply -f oke-lb-service.yaml
+  #     #     # kubectl get svc web-lb -o wide
+
+  #     # - name: Deploy TLS secret
+  #     #   shell: bash
+  #     #   env:
+  #     #     TLSCRT: ${{ secrets.TLSCRT }}
+  #     #     TLSKEY: ${{ secrets.TLSKEY }}
+  #     #   run: |
+  #     #     set -euo pipefail
+  #     #     cat > secret.yaml <<EOF
+  #     #     apiVersion: v1
+  #     #     kind: Secret
+  #     #     metadata:
+  #     #       name: ssl-certificate-secret
+  #     #     type: kubernetes.io/tls
+  #     #     stringData:
+  #     #       tls.crt: |
+  #     #     $(printf '%s\n' "$TLSCRT" | sed 's/^/        /')
+  #     #       tls.key: |
+  #     #     $(printf '%s\n' "$TLSKEY" | sed 's/^/        /')
+  #     #     EOF
+
+  #     #     # kubectl apply -f secret.yaml
+  #     #     # kubectl get secret ssl-certificate-secret
+
+  #     - name: Install Helm
+  #       uses: azure/setup-helm@v5.0.0
+
+  #     - name: Add Prometheus Helm Repo
+  #       run: |
+  #         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  #         helm repo update
+
+  #     - name: Install Prometheus Stack
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+  #         # # Install Blackbox Exporter
+  #         # if helm status blackbox -n monitoring > /dev/null 2>&1; then
+  #         #   echo "blackbox Helm release already exists in monitoring, skipping Helm install."
+  #         # else
+  #         #   echo "blackbox Helm release not found, installing..."
+  #         #   helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter \
+  #         #     --namespace monitoring 
+  #         # fi
+
+  #         helm upgrade --install blackbox prometheus-community/prometheus-blackbox-exporter -f ./observability/blackbox-custom-values.yml \
+  #           --namespace monitoring
+
+  #         # # Skip prometheus install if release already exists
+  #         # if helm status kube-prometheus-stack -n monitoring > /dev/null 2>&1; then
+  #         #   echo "kube-prometheus-stack Helm release already exists in monitoring, skipping Helm install."
+  #         # else
+  #         #   echo "kube-prometheus-stack Helm release not found, installing..."
+  #         #   helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -f values.yaml \
+  #         #     --namespace monitoring \
+  #         #     --set prometheus.service.type=ClusterIP 
+  #         # fi
+
+  #         helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack -f ./observability/prometheus-custom-values.yml \
+  #           --namespace monitoring \
+  #           --set prometheus.service.type=ClusterIP
+
+  #         ### Check helm list ####
+
+  #         helm list -n monitoring
+
+  #     - name: Install Redis-Exporter-Primary Helm Chart
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+  #         cat <<EOF > stg-redis-primary-values.yml
+  #         redisAddress: rediss://aaa6svk5iiaqs2cedo7rg6zhz5e43e6z2rinddhraxpgz4gwip7kvoa-p.redis.ap-singapore-1.oci.oraclecloud.com:6379
+  #         image:
+  #           repository: docker.io/oliver006/redis_exporter
+  #           tag: v1.88.0
+  #           pullPolicy: IfNotPresent
+
+  #         serviceMonitor:
+  #           enabled: true
+  #           interval: 30s
+  #           namespace: monitoring
+
+  #           labels:
+  #             release: kube-prometheus-stack
+
+  #         prometheus:
+  #           monitor:
+  #             enabled: true
+  #         EOF
+
+  #         cat stg-redis-primary-values.yml
+
+
+  #         # Skip redis-exporter-primary install if release already exists
+  #         if helm status redis-exporter-primary -n monitoring > /dev/null 2>&1; then
+  #           echo "redis-exporter-primary Helm release already exists in monitoring, skipping Helm install."
+  #         else
+  #           echo "redis-exporter-primary Helm release not found, installing..."
+  #           helm install redis-exporter-primary prometheus-community/prometheus-redis-exporter \
+  #             --namespace monitoring \
+  #             -f stg-redis-primary-values.yml
+  #         fi
+
+  #     - name: Install Redis-Exporter-Replica Helm Chart
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+  #         cat <<EOF > stg-redis-replica-values.yml
+  #         redisAddress: rediss://aaa6svk5iiaqs2cedo7rg6zhz5e43e6z2rinddhraxpgz4gwip7kvoa-r.redis.ap-singapore-1.oci.oraclecloud.com:6379
+  #         image:
+  #           repository: docker.io/oliver006/redis_exporter
+  #           tag: v1.88.0
+  #           pullPolicy: IfNotPresent
+
+  #         serviceMonitor:
+  #           enabled: true
+  #           interval: 30s
+  #           namespace: monitoring
+
+  #           labels:
+  #             release: kube-prometheus-stack
+
+  #         prometheus:
+  #           monitor:
+  #             enabled: true
+  #         EOF
+
+  #         cat stg-redis-replica-values.yml
+
+
+  #         # Skip redis-exporter-replica install if release already exists
+  #         if helm status redis-exporter-replica -n monitoring > /dev/null 2>&1; then
+  #           echo "redis-exporter-replica Helm release already exists in monitoring, skipping Helm install."
+  #         else
+  #           echo "redis-exporter-replica Helm release not found, installing..."
+  #           helm install redis-exporter-replica prometheus-community/prometheus-redis-exporter \
+  #             --namespace monitoring \
+  #             -f stg-redis-replica-values.yml
+  #         fi
+
+  #     - name: Apply DevOps-managed Prometheus Internal LoadBalancer 
+  #       shell: bash
+  #       run: |
+  #         set -euo pipefail
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         cat <<EOF > prometheus-lb-service.yaml
+  #         ---
+  #         apiVersion: v1
+  #         kind: Service
+  #         metadata:
+  #           name: prometheus-lb
+  #           namespace: monitoring
+  #           annotations:
+  #             oci.oraclecloud.com/load-balancer-type: "lb"
+  #             service.beta.kubernetes.io/oci-load-balancer-internal: "true"
+  #             service.beta.kubernetes.io/oci-load-balancer-subnet1: "${LB_SUBNET_OCID}"
+  #             oci.oraclecloud.com/oci-network-security-groups: "${LB_NSG_OCID}"
+  #             service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+  #             service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+  #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+  #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
+  #         spec:
+  #           type: LoadBalancer
+  #           selector:
+  #             app.kubernetes.io/name: prometheus
+  #             app.kubernetes.io/instance: kube-prometheus-stack-prometheus
+  #           ports:
+  #             - name: http
+  #               port: 9090
+  #               targetPort: 9090
+  #               protocol: TCP
+  #         EOF
+  #         cat prometheus-lb-service.yaml
+  #         kubectl apply -f prometheus-lb-service.yaml
+  #         kubectl -n monitoring get svc prometheus-lb -o wide
+
+  #     # - name: Install NGINX Gateway Fabric
+  #     #   run: |
+  #     #     export KUBECONFIG="$HOME/.kube/config"
+
+  #     #     kubectl create namespace nginx-gateway --dry-run=client -o yaml | kubectl apply -f -
+
+  #     #     # Install Gateway API CRDs (safe re-apply)
+  #     #     kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+  #     #     # Install Helm chart (skip if exists)
+  #     #     if helm status ngf -n nginx-gateway > /dev/null 2>&1; then
+  #     #        echo "NGINX Gateway Fabric already installed, skipping..."
+  #     #     else
+  #     #       echo "Installing NGINX Gateway Fabric..."
+  #     #       helm upgrade --install ngf oci://ghcr.io/nginx/charts/nginx-gateway-fabric \
+  #     #         --namespace nginx-gateway \
+  #     #         --set service.type=LoadBalancer \
+  #     #         --set gatewayClass.name=nginx
+  #     #     fi
+
+  #     - name: Install NGINX Ingress Controller
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         kubectl create namespace ingress-nginx --dry-run=client -o yaml | kubectl apply -f -
+
+  #         # Add repo if not already added
+  #         helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx || true
+  #         helm repo update
+
+  #         # Skip install if already exists
+  #         if helm status ingress-nginx-new -n ingress-nginx > /dev/null 2>&1; then
+  #           echo "ingress-nginx-new already installed, skipping..."
+  #         else
+  #           echo "Installing ingress-nginx-new..."
+
+  #           helm upgrade --install ingress-nginx-new ingress-nginx/ingress-nginx \
+  #           --namespace ingress-nginx \
+  #           --set controller.name=custom-nginx \
+  #           --set controller.ingressClassResource.name=custom-nginx \
+  #           --set controller.ingressClass=custom-nginx \
+  #           --set controller.electionID=custom-nginx-leader \
+  #           --set controller.service.type=LoadBalancer \
+  #           --set controller.publishService.enabled=true \
+  #           --set controller.service.annotations."service\.beta\.kubernetes\.io/oci-load-balancer-subnet1"="${LB_SUBNET_OCID}" \
+  #           --set controller.service.annotations."oci\.oraclecloud\.com/oci-network-security-groups"="${LB_NSG_OCID}" \
+  #           --set controller.service.annotations."service\.beta\.kubernetes\.io/oci-load-balancer-security-list-management-mode"="None" \
+  #           --set controller.service.annotations."oci\.oraclecloud\.com/load-balancer-type"="lb"
+  #         fi
+
+  #     - name: Loki Setup
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
+
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+  #         # Add repo if not already added
+  #         helm repo add grafana https://grafana.github.io/helm-charts || true
+  #         helm repo update
+
+  #         cat <<EOF > loki-custom-values.yaml
+
+  #         deploymentMode: SingleBinary
+  #         singleBinary:
+  #           replicas: 1
+  #           autoscaling:
+  #           # -- Enable autoscaling
+  #             enabled: true
+  #           service:
+  #             type: LoadBalancer
+  #             annotations:
+  #               oci.oraclecloud.com/load-balancer-type: "lb"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-internal: "true"
+
+  #               oci.oraclecloud.com/oci-network-security-groups: "ocid1.networksecuritygroup.oc1.ap-singapore-1.aaaaaaaazp36gnkorhr5kmhithphvsaw7ca75yw77dzrzag7m6zj3iteytea"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-subnet1: "ocid1.subnet.oc1.ap-singapore-1.aaaaaaaa6ofzms5vzszg52x3zvubdogd463qqneeg7om3bdys7qqbype3qxa"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+
+  #               service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
+  #             ports:
+  #               http:
+  #                 port: 3100
+  #                 targetPort: http
+  #         backend:
+  #           replicas: 0
+  #         read:
+  #           replicas: 0
+  #         write:
+  #           replicas: 0
+  #         lokiCanary:
+  #           enabled: false
+  #         test:
+  #           enabled: false
+
+  #         loki:
+  #           auth_enabled: false
+  #           limits_config:
+  #             allow_structured_metadata: true
+  #             volume_enabled: true
+  #             retention_period: 720h   # 30 days
           
-#   #           compactor:
-#   #             retention_enabled: true
-#   #             working_directory: /var/loki/compactor
-#   #             delete_request_store: s3
+  #           compactor:
+  #             retention_enabled: true
+  #             working_directory: /var/loki/compactor
+  #             delete_request_store: s3
 
-#   #           distributor:
-#   #             otlp_config:
-#   #               default_resource_attributes_as_index_labels:
-#   #                 - service.name
-#   #                 - service.namespace
-#   #                 - service.instance.id
-#   #                 - k8s.namespace.name
-#   #                 - k8s.pod.name
-#   #                 - k8s.container.name
+  #           distributor:
+  #             otlp_config:
+  #               default_resource_attributes_as_index_labels:
+  #                 - service.name
+  #                 - service.namespace
+  #                 - service.instance.id
+  #                 - k8s.namespace.name
+  #                 - k8s.pod.name
+  #                 - k8s.container.name
 
-#   #           commonConfig:
-#   #             replication_factor: 1
+  #           commonConfig:
+  #             replication_factor: 1
 
-#   #           schemaConfig:
-#   #             configs:
-#   #               - from: "2024-01-01"
-#   #                 store: tsdb
-#   #                 object_store: s3
-#   #                 schema: v13
-#   #                 index:
-#   #                   prefix: index_
-#   #                   period: 24h
+  #           schemaConfig:
+  #             configs:
+  #               - from: "2024-01-01"
+  #                 store: tsdb
+  #                 object_store: s3
+  #                 schema: v13
+  #                 index:
+  #                   prefix: index_
+  #                   period: 24h
 
-#   #           storage:
+  #           storage:
             
-#   #             type: s3
-#   #             # Use Thanos object storage client
-#   #             use_thanos_objstore: true
-#   #             bucketNames:
-#   #               chunks: stg_loki_chunks_bucket
-#   #               ruler: stg_loki_ruler_bucket
-#   #               admin: stg_loki_admin_bucket
+  #             type: s3
+  #             # Use Thanos object storage client
+  #             use_thanos_objstore: true
+  #             bucketNames:
+  #               chunks: stg_loki_chunks_bucket
+  #               ruler: stg_loki_ruler_bucket
+  #               admin: stg_loki_admin_bucket
 
-#   #             object_store:
-#   #               type: s3
+  #             object_store:
+  #               type: s3
 
-#   #               s3:
-#   #                 endpoint: sdu99mdvjlue.compat.objectstorage.ap-singapore-1.oci.customer-oci.com
-#   #                 region: ap-singapore-1
-#   #                 access_key_id: ${{ secrets.OCI_ACCESSKEYID }}
-#   #                 secret_access_key: ${{ secrets.OCI_SECRETACCESSKEY }}
-#   #                 insecure: false
+  #               s3:
+  #                 endpoint: sdu99mdvjlue.compat.objectstorage.ap-singapore-1.oci.customer-oci.com
+  #                 region: ap-singapore-1
+  #                 access_key_id: ${{ secrets.OCI_ACCESSKEYID }}
+  #                 secret_access_key: ${{ secrets.OCI_SECRETACCESSKEY }}
+  #                 insecure: false
               
-#   #         gateway:
-#   #           enabled: false
-#   #         chunksCache:
-#   #           enabled: false
-#   #         resultsCache:
-#   #           enabled: false
+  #         gateway:
+  #           enabled: false
+  #         chunksCache:
+  #           enabled: false
+  #         resultsCache:
+  #           enabled: false
           
-#   #         EOF
+  #         EOF
 
-#   #         cat loki-custom-values.yaml
-#   #         helm upgrade --install loki grafana/loki \
-#   #         --namespace monitoring -f loki-custom-values.yaml
+  #         cat loki-custom-values.yaml
+  #         helm upgrade --install loki grafana/loki \
+  #         --namespace monitoring -f loki-custom-values.yaml
 
-#   #         # # Skip install if already exists
-#   #         # if helm status loki -n monitoring > /dev/null 2>&1; then
-#   #         #   echo "loki already installed, skipping..."
-#   #         # else
-#   #         #   echo "Installing loki..."
+  #         # # Skip install if already exists
+  #         # if helm status loki -n monitoring > /dev/null 2>&1; then
+  #         #   echo "loki already installed, skipping..."
+  #         # else
+  #         #   echo "Installing loki..."
 
-#   #         #   helm upgrade --install loki grafana/loki \
-#   #         #   --namespace monitoring -f ./observability/loki-custom-values.yml
-#   #         # fi
+  #         #   helm upgrade --install loki grafana/loki \
+  #         #   --namespace monitoring -f ./observability/loki-custom-values.yml
+  #         # fi
 
-#   #     - name: Tempo Setup
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
+  #     - name: Tempo Setup
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
 
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-#   #         # Add repo if not already added
-#   #         helm repo add grafana https://grafana.github.io/helm-charts || true
-#   #         helm repo update
+  #         # Add repo if not already added
+  #         helm repo add grafana https://grafana.github.io/helm-charts || true
+  #         helm repo update
 
-#   #         cat <<EOF > tempo-custom-values.yaml
-#   #         tempo:
-#   #           storage:
-#   #             trace:
-#   #               backend: s3
+  #         cat <<EOF > tempo-custom-values.yaml
+  #         tempo:
+  #           storage:
+  #             trace:
+  #               backend: s3
 
-#   #               s3:
-#   #                 bucket: stg_tempo_bucket
+  #               s3:
+  #                 bucket: stg_tempo_bucket
 
-#   #                 endpoint: sdu99mdvjlue.compat.objectstorage.ap-singapore-1.oci.customer-oci.com
+  #                 endpoint: sdu99mdvjlue.compat.objectstorage.ap-singapore-1.oci.customer-oci.com
 
-#   #                 region: ap-singapore-1
+  #                 region: ap-singapore-1
 
-#   #                 access_key: ${{ secrets.OCI_ACCESSKEYID }}
+  #                 access_key: ${{ secrets.OCI_ACCESSKEYID }}
 
-#   #                 secret_key: ${{ secrets.OCI_SECRETACCESSKEY }}
+  #                 secret_key: ${{ secrets.OCI_SECRETACCESSKEY }}
 
-#   #                 insecure: false
+  #                 insecure: false
 
-#   #           retention: 720h
+  #           retention: 720h
 
-#   #         service:
-#   #           type: LoadBalancer
-#   #           annotations:
-#   #             oci.oraclecloud.com/load-balancer-type: "lb"
+  #         service:
+  #           type: LoadBalancer
+  #           annotations:
+  #             oci.oraclecloud.com/load-balancer-type: "lb"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-internal: "true"
+  #             service.beta.kubernetes.io/oci-load-balancer-internal: "true"
 
-#   #             oci.oraclecloud.com/oci-network-security-groups: "ocid1.networksecuritygroup.oc1.ap-singapore-1.aaaaaaaazp36gnkorhr5kmhithphvsaw7ca75yw77dzrzag7m6zj3iteytea"
+  #             oci.oraclecloud.com/oci-network-security-groups: "ocid1.networksecuritygroup.oc1.ap-singapore-1.aaaaaaaazp36gnkorhr5kmhithphvsaw7ca75yw77dzrzag7m6zj3iteytea"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-subnet1: "ocid1.subnet.oc1.ap-singapore-1.aaaaaaaa6ofzms5vzszg52x3zvubdogd463qqneeg7om3bdys7qqbype3qxa"
+  #             service.beta.kubernetes.io/oci-load-balancer-subnet1: "ocid1.subnet.oc1.ap-singapore-1.aaaaaaaa6ofzms5vzszg52x3zvubdogd463qqneeg7om3bdys7qqbype3qxa"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
+  #             service.beta.kubernetes.io/oci-load-balancer-security-list-management-mode: "None"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+  #             service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+  #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
 
-#   #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
-#   #         EOF
+  #             service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "1000"
+  #         EOF
 
-#   #         helm upgrade --install tempo grafana/tempo \
-#   #         --namespace monitoring -f tempo-custom-values.yaml
+  #         helm upgrade --install tempo grafana/tempo \
+  #         --namespace monitoring -f tempo-custom-values.yaml
           
 
-#   #         # # Skip install if already exists
-#   #         # if helm status tempo -n monitoring > /dev/null 2>&1; then
-#   #         #   echo "tempo already installed, skipping..."
-#   #         # else
-#   #         #   echo "Installing tempo..."
+  #         # # Skip install if already exists
+  #         # if helm status tempo -n monitoring > /dev/null 2>&1; then
+  #         #   echo "tempo already installed, skipping..."
+  #         # else
+  #         #   echo "Installing tempo..."
 
-#   #         #   helm upgrade --install tempo grafana/tempo \
-#   #         #   --namespace monitoring -f ./observability/tempo-custom-values.yml
-#   #         # fi
+  #         #   helm upgrade --install tempo grafana/tempo \
+  #         #   --namespace monitoring -f ./observability/tempo-custom-values.yml
+  #         # fi
 
-#   #     - name: OTEL Setup
-#   #       run: |
-#   #         export KUBECONFIG="$HOME/.kube/config"
+  #     - name: OTEL Setup
+  #       run: |
+  #         export KUBECONFIG="$HOME/.kube/config"
 
-#   #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  #         kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-#   #         # Add repo if not already added
-#   #         helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts || true
-#   #         helm repo update
+  #         # Add repo if not already added
+  #         helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts || true
+  #         helm repo update
 
-#   #         helm upgrade --install otel open-telemetry/opentelemetry-collector \
-#   #         --namespace monitoring -f ./observability/otel-custom-values.yml
+  #         helm upgrade --install otel open-telemetry/opentelemetry-collector \
+  #         --namespace monitoring -f ./observability/otel-custom-values.yml
 
-#   #         # # Skip install if already exists
-#   #         # if helm status otel -n monitoring > /dev/null 2>&1; then
-#   #         #   echo "otel already installed, skipping..."
-#   #         # else
-#   #         #   echo "Installing otel..."
+  #         # # Skip install if already exists
+  #         # if helm status otel -n monitoring > /dev/null 2>&1; then
+  #         #   echo "otel already installed, skipping..."
+  #         # else
+  #         #   echo "Installing otel..."
 
-#   #         #   helm upgrade --install otel open-telemetry/opentelemetry-collector \
-#   #         #   --namespace monitoring -f ./observability/otel-custom-values.yml
-#   #         # fi
+  #         #   helm upgrade --install otel open-telemetry/opentelemetry-collector \
+  #         #   --namespace monitoring -f ./observability/otel-custom-values.yml
+  #         # fi
 
 
 
