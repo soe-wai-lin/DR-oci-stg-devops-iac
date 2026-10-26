@@ -665,7 +665,7 @@ variable "bastion_instance_shape" {
 }
 
 variable "bastion_availability_domain" {
-  default = "kHij:AP-SINGAPORE-1-AD-1"
+  default = "aluk:AP-SYDNEY-1-AD-1"
 }
 
 variable "bastion_shape_is_flex" {
@@ -867,7 +867,7 @@ variable "airs_system_ocpus" {
 }
 
 variable "airs_system_availability_domain" {
-  default = "aluk:AP-SINGAPORE-1-AD-1"
+  default = "aluk:AP-SYDNEY-1-AD-1"
 }
 
 variable "airs_system_node_image_id" {
@@ -895,7 +895,7 @@ variable "airs_worker_node_count" {
 }
 
 variable "airs_worker_availability_domain" {
-  default = "aluk:AP-SINGAPORE-1-AD-1"
+  default = "aluk:AP-SYDNEY-1-AD-1"
 }
 
 variable "airs_worker_node_shape" {
