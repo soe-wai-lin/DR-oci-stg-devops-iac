@@ -1347,51 +1347,51 @@ resource "oci_core_route_table" "private_rt" {
     description       = "Private subnet default route via NAT Gateway"
   }
 
-  route_rules {
-    destination       = "10.30.0.0/16"
-    destination_type  = "CIDR_BLOCK"
-    network_entity_id = "ocid1.drg.oc1.ap-sydney-1.aaaaaaaaz2t2qhd6rx4qq4rv26cuet5kxtfo2lkayeiirbcvnzajjoqcwvza"
-    description       = "DC CIDR default route via DRG"
-  }
+  # route_rules {
+  #   destination       = "10.30.0.0/16"
+  #   destination_type  = "CIDR_BLOCK"
+  #   network_entity_id = "ocid1.drg.oc1.ap-sydney-1.aaaaaaaaz2t2qhd6rx4qq4rv26cuet5kxtfo2lkayeiirbcvnzajjoqcwvza"
+  #   description       = "DC CIDR default route via DRG"
+  # }
 
   freeform_tags = var.freeform_tags
 }
 
-#-------------------------------------
-# Check Default Route Table ----------
-#-------------------------------------
+# #-------------------------------------
+# # Check Default Route Table ----------
+# #-------------------------------------
 
-data "oci_core_route_tables" "existing" {
-  compartment_id = oci_identity_compartment.net_compartment.id
-  vcn_id         = oci_core_vcn.terra_vcn.id
-}
+# data "oci_core_route_tables" "existing" {
+#   compartment_id = oci_identity_compartment.net_compartment.id
+#   vcn_id         = oci_core_vcn.terra_vcn.id
+# }
 
-locals {
-  default_route_table = one([
-    for rt in data.oci_core_route_tables.existing.route_tables :
-    rt
-    if rt.id == oci_core_vcn.terra_vcn.default_route_table_id
-  ])
-}
+# locals {
+#   default_route_table = one([
+#     for rt in data.oci_core_route_tables.existing.route_tables :
+#     rt
+#     if rt.id == oci_core_vcn.terra_vcn.default_route_table_id
+#   ])
+# }
 
-#--------------------------------------
-# Add Some Route into Default Table ---
-#--------------------------------------
+# #--------------------------------------
+# # Add Some Route into Default Table ---
+# #--------------------------------------
 
-resource "oci_core_default_route_table" "default_rt" {
-  manage_default_resource_id = local.default_route_table.id
+# resource "oci_core_default_route_table" "default_rt" {
+#   manage_default_resource_id = local.default_route_table.id
 
 
-  # Include all existing routes you want to retain.
-  # Add the new DR route below.
-  route_rules {
-    destination       = "10.30.0.0/16"
-    destination_type  = "CIDR_BLOCK"
-    network_entity_id = "ocid1.drg.oc1.ap-sydney-1.aaaaaaaaz2t2qhd6rx4qq4rv26cuet5kxtfo2lkayeiirbcvnzajjoqcwvza"
-    description       = "DR VCN route via DRG"
-  }
-  freeform_tags = var.freeform_tags
-}
+#   # Include all existing routes you want to retain.
+#   # Add the new DR route below.
+#   route_rules {
+#     destination       = "10.30.0.0/16"
+#     destination_type  = "CIDR_BLOCK"
+#     network_entity_id = "ocid1.drg.oc1.ap-sydney-1.aaaaaaaaz2t2qhd6rx4qq4rv26cuet5kxtfo2lkayeiirbcvnzajjoqcwvza"
+#     description       = "DR VCN route via DRG"
+#   }
+#   freeform_tags = var.freeform_tags
+# }
 
 
 data "oci_core_services" "services" {}
